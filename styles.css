@@ -1,0 +1,307 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Gmail Label Tabs — injected styles
+   All selectors are prefixed with  glt-  to avoid collisions with Gmail's CSS.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Tab Bar ─────────────────────────────────────────────────────────────── */
+
+#glt-bar {
+  display: flex;
+  align-items: stretch;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0 8px;
+  min-height: 48px;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: none;
+  /* No box-shadow — blends flush with Gmail's native toolbar above it */
+}
+
+#glt-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Tab Buttons ─────────────────────────────────────────────────────────── */
+
+.glt-tab {
+  /* Reset browser button defaults */
+  all: unset;
+  box-sizing: border-box;
+
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 18px;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: #444746;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+  /* Push the border flush with the bar's bottom border */
+  margin-bottom: -1px;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+  border-radius: 4px 4px 0 0;
+}
+
+.glt-tab:hover {
+  color: #1a73e8;
+  background: #f1f3f4;
+}
+
+.glt-tab:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: -2px;
+}
+
+.glt-tab--active {
+  color: #1a73e8;
+  font-weight: 600;
+  border-bottom: 3px solid #1a73e8;
+  margin-bottom: -1px;
+}
+
+/* ── Settings Gear ───────────────────────────────────────────────────────── */
+
+.glt-gear {
+  all: unset;
+  box-sizing: border-box;
+
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 0 10px;
+  color: #5f6368;
+  border-radius: 50%;
+  transition: background 140ms ease, color 140ms ease;
+  flex-shrink: 0;
+}
+
+.glt-gear:hover {
+  background: #f1f3f4;
+  color: #1a73e8;
+}
+
+.glt-gear:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Settings Panel
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Backdrop ────────────────────────────────────────────────────────────── */
+
+#glt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.38);
+  z-index: 9998;
+  animation: glt-fade-in 160ms ease;
+}
+
+/* ── Modal shell ─────────────────────────────────────────────────────────── */
+
+#glt-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow:
+    0 6px 10px rgba(0, 0, 0, 0.14),
+    0 1px 18px rgba(0, 0, 0, 0.12),
+    0 3px 5px rgba(0, 0, 0, 0.2);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  animation: glt-slide-in 180ms ease;
+}
+
+@keyframes glt-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes glt-slide-in {
+  from { opacity: 0; transform: translate(-50%, -48%); }
+  to   { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.glt-sp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}
+
+.glt-sp-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: #202124;
+  line-height: 1;
+}
+
+.glt-sp-x {
+  all: unset;
+  cursor: pointer;
+  color: #5f6368;
+  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 140ms ease;
+}
+
+.glt-sp-x:hover     { background: #f1f3f4; }
+.glt-sp-x:focus-visible { outline: 2px solid #1a73e8; }
+
+/* ── Hint ────────────────────────────────────────────────────────────────── */
+
+.glt-sp-hint {
+  margin: 0;
+  padding: 12px 24px;
+  font-size: 13px;
+  color: #5f6368;
+  flex-shrink: 0;
+}
+
+/* ── Scrollable label list ───────────────────────────────────────────────── */
+
+.glt-sp-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 12px;
+}
+
+.glt-sp-msg {
+  padding: 16px 12px;
+  font-size: 14px;
+  color: #5f6368;
+  margin: 0;
+}
+
+.glt-sp-err {
+  color: #c5221f;
+}
+
+/* ── Label row ───────────────────────────────────────────────────────────── */
+
+.glt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: background 100ms ease, border-color 100ms ease;
+  user-select: none;
+  cursor: default;
+}
+
+.glt-row:hover {
+  background: #f8f9fa;
+}
+
+.glt-row--dragging {
+  opacity: 0.35;
+}
+
+.glt-row--over {
+  border-color: #1a73e8;
+  background: #e8f0fe;
+}
+
+/* Drag handle */
+.glt-row-handle {
+  color: #bdc1c6;
+  font-size: 20px;
+  line-height: 1;
+  cursor: grab;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+.glt-row-handle:active {
+  cursor: grabbing;
+}
+
+/* Checkbox + name wrapper */
+.glt-row-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  cursor: pointer;
+}
+
+.glt-row-cb {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #1a73e8;
+  flex-shrink: 0;
+}
+
+.glt-row-name {
+  font-size: 14px;
+  color: #202124;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+
+.glt-sp-foot {
+  padding: 16px 24px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.glt-sp-save {
+  all: unset;
+  cursor: pointer;
+  background: #1a73e8;
+  color: #fff;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 28px;
+  border-radius: 6px;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+
+.glt-sp-save:hover {
+  background: #1765cc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.glt-sp-save:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.glt-sp-save:disabled {
+  background: #8ab4f8;
+  cursor: default;
+}

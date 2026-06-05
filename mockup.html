@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Gmail Label Tabs — Mockup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Google Sans', Roboto, Arial, sans-serif; }
+    body { background: #f6f8fc; color: #202124; }
+
+    /* ── Gmail header ─────────────────────────────────────────── */
+    .header { display: flex; align-items: center; height: 64px; padding: 0 16px; gap: 16px; background: #f6f8fc; }
+    .menu-btn { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .menu-btn:hover { background: #e8eaed; }
+    .menu-btn svg { width: 24px; height: 24px; fill: #5f6368; }
+    .gmail-logo { display: flex; align-items: center; gap: 8px; }
+    .gmail-logo span { font-size: 22px; color: #5f6368; }
+    .search { flex: 1; max-width: 720px; height: 48px; background: #eaf1fb; border-radius: 8px; display: flex; align-items: center; padding: 0 16px; gap: 12px; }
+    .search:hover { background: #fff; box-shadow: 0 1px 1px rgba(0,0,0,.1); }
+    .search svg { width: 20px; height: 20px; fill: #5f6368; }
+    .search input { flex: 1; border: none; background: transparent; outline: none; font-size: 16px; }
+    .header-spacer { flex: 1; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: #1a73e8; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 500; }
+
+    /* ── Body layout ──────────────────────────────────────────── */
+    .body { display: flex; height: calc(100vh - 64px); }
+
+    /* Sidebar */
+    .sidebar { width: 256px; padding: 8px; overflow-y: auto; }
+    .compose { display: flex; align-items: center; gap: 16px; padding: 16px; margin: 8px 8px 16px; background: #c2e7ff; border-radius: 16px; cursor: pointer; font-weight: 500; }
+    .compose:hover { box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+    .compose-icon { width: 24px; height: 24px; }
+    .nav-item { display: flex; align-items: center; gap: 16px; padding: 0 12px 0 26px; height: 32px; border-radius: 0 16px 16px 0; cursor: pointer; font-size: 14px; color: #202124; }
+    .nav-item:hover { background: #e8eaed; }
+    .nav-item.active { background: #d3e3fd; font-weight: 700; }
+    .nav-item .count { margin-left: auto; font-size: 12px; }
+    .nav-icon { width: 20px; height: 20px; fill: #5f6368; flex-shrink: 0; }
+    .nav-item.active .nav-icon { fill: #001d35; }
+    .labels-header { padding: 16px 12px 4px 26px; font-size: 14px; color: #202124; display: flex; align-items: center; justify-content: space-between; }
+
+    /* Main pane */
+    .main { flex: 1; background: #fff; border-radius: 16px 0 0 0; margin: 0 8px 8px 0; overflow: hidden; display: flex; flex-direction: column; }
+
+    /* ── Our tab bar ─────────────────────────────────────────── */
+    .glt-bar {
+      display: flex;
+      align-items: stretch;
+      gap: 4px;
+      padding: 0 12px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      min-height: 44px;
+      flex-shrink: 0;
+    }
+    .glt-tab {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0 16px;
+      font-size: 14px;
+      color: #5f6368;
+      white-space: nowrap;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+      font-family: inherit;
+    }
+    .glt-tab:hover { color: #202124; background: #f1f3f4; }
+    .glt-tab.active {
+      color: #1a73e8;
+      font-weight: 600;
+      border-bottom: 3px solid #1a73e8;
+    }
+    .glt-gear {
+      margin-left: auto;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: #5f6368;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+    }
+    .glt-gear:hover { color: #1a73e8; }
+    .glt-gear svg { width: 18px; height: 18px; fill: currentColor; }
+
+    /* ── Toolbar row (Gmail's native one) ─────────────────────── */
+    .toolbar { display: flex; align-items: center; gap: 4px; padding: 8px 16px; border-bottom: 1px solid #f1f3f4; }
+    .tb-btn { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #5f6368; }
+    .tb-btn:hover { background: #f1f3f4; }
+    .tb-btn svg { width: 18px; height: 18px; fill: currentColor; }
+    .toolbar-spacer { flex: 1; }
+    .pagination { font-size: 12px; color: #5f6368; }
+
+    /* ── Email list ───────────────────────────────────────────── */
+    .email-list { flex: 1; overflow-y: auto; }
+    .email-row { display: flex; align-items: center; gap: 12px; padding: 0 16px 0 12px; height: 40px; border-bottom: 1px solid #f1f3f4; cursor: pointer; font-size: 14px; }
+    .email-row:hover { box-shadow: inset 1px 0 0 #dadce0, inset -1px 0 0 #dadce0, 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15); z-index: 1; position: relative; }
+    .email-row.unread { background: #f2f6fc; font-weight: 700; }
+    .email-row.unread .sender, .email-row.unread .subject-line { color: #202124; }
+    .row-check { width: 18px; height: 18px; border: 2px solid #5f6368; border-radius: 2px; flex-shrink: 0; }
+    .row-star svg { width: 18px; height: 18px; fill: #dadce0; }
+    .row-label { width: 16px; height: 16px; flex-shrink: 0; }
+    .sender { width: 168px; color: #5f6368; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .subject-line { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #5f6368; }
+    .subject { font-weight: inherit; }
+    .preview { color: #5f6368; font-weight: 400; }
+    .date { width: 64px; text-align: right; color: #5f6368; font-size: 12px; }
+
+    /* Label pill on email row */
+    .label-pill { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 500; margin-right: 6px; vertical-align: middle; }
+    .label-todo { background: #d93025; color: #fff; }
+    .label-followup { background: #1a73e8; color: #fff; }
+    .label-watch { background: #f9ab00; color: #fff; }
+
+    /* Empty state */
+    .empty { padding: 80px 24px; text-align: center; color: #5f6368; }
+
+    /* Helper to make sidebar label dots */
+    .label-dot { width: 12px; height: 12px; border-radius: 2px; }
+    .dot-followup { background: #1a73e8; }
+    .dot-todo { background: #d93025; }
+    .dot-watch { background: #f9ab00; }
+  </style>
+</head>
+<body>
+
+  <!-- ── HEADER ─────────────────────────────────────────────── -->
+  <div class="header">
+    <div class="menu-btn">
+      <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+    </div>
+    <div class="gmail-logo">
+      <svg width="40" height="32" viewBox="0 0 256 193"><path fill="#4285F4" d="M58.182 192.05V93.14L27.507 65.077 0 49.504v125.091c0 9.658 7.825 17.455 17.455 17.455z"/><path fill="#34A853" d="M197.818 192.05h40.727c9.659 0 17.455-7.826 17.455-17.455V49.505l-31.156 17.837-27.026 25.798z"/><path fill="#EA4335" d="M58.182 93.14L54.025 54.65l4.157-36.69L128 70.45l69.818-52.49 4.65 33.495-4.65 41.685L128 145.63z"/><path fill="#FBBC04" d="M197.818 17.96V93.14L256 49.505V26.96c0-20.793-23.723-32.665-40.364-20.19z"/><path fill="#C5221F" d="M0 49.505l26.759 20.07L58.182 93.14V17.96L40.364 6.77C23.694-5.706 0 6.166 0 26.96z"/></svg>
+      <span>Gmail</span>
+    </div>
+    <div class="search">
+      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+      <input id="search-box" type="text" placeholder="Search mail">
+    </div>
+    <div class="header-spacer"></div>
+    <div class="avatar">J</div>
+  </div>
+
+  <!-- ── BODY ───────────────────────────────────────────────── -->
+  <div class="body">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="compose">
+        <svg class="compose-icon" viewBox="0 0 24 24"><path fill="#001d35" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        Compose
+      </div>
+      <div class="nav-item active" data-tab="INBOX">
+        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm0 12h-4c0 1.66-1.35 3-3 3s-3-1.34-3-3H4.99V5H19v10z"/></svg>
+        Inbox
+      </div>
+      <div class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+        Starred
+      </div>
+      <div class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+        Snoozed
+      </div>
+      <div class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        Sent
+      </div>
+      <div class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+        Drafts <span class="count">11</span>
+      </div>
+
+      <div class="labels-header"><span>Labels</span><span>+</span></div>
+
+      <div class="nav-item" data-tab="Follow Up">
+        <span class="label-dot dot-followup"></span>
+        Follow Up
+      </div>
+      <div class="nav-item" data-tab="To Do">
+        <span class="label-dot dot-todo"></span>
+        To Do <span class="count">2</span>
+      </div>
+      <div class="nav-item" data-tab="To Watch">
+        <span class="label-dot dot-watch"></span>
+        To Watch <span class="count">1</span>
+      </div>
+    </div>
+
+    <!-- Main pane -->
+    <div class="main">
+
+      <!-- Our extension's tab bar -->
+      <div class="glt-bar" id="glt-bar">
+        <button class="glt-tab active" data-tab="INBOX">Inbox</button>
+        <button class="glt-tab" data-tab="Follow Up">Follow Up</button>
+        <button class="glt-tab" data-tab="To Do">To Do</button>
+        <button class="glt-tab" data-tab="To Watch">To Watch</button>
+        <button class="glt-gear" title="Configure label tabs">
+          <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96a7.28 7.28 0 00-1.62-.94l-.36-2.54A.48.48 0 0014 3h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 00-.59.22L2.74 9.47a.48.48 0 00.12.61l2.03 1.58a7.44 7.44 0 000 1.88l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 00-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        </button>
+      </div>
+
+      <!-- Gmail's toolbar -->
+      <div class="toolbar">
+        <div class="tb-btn"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm0 16H5V5h14v14z"/></svg></div>
+        <div class="tb-btn"><svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></div>
+        <div class="tb-btn"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        <div class="toolbar-spacer"></div>
+        <span class="pagination" id="pagination">1–6 of 6</span>
+      </div>
+
+      <!-- Email list -->
+      <div class="email-list" id="email-list"></div>
+    </div>
+  </div>
+
+  <script>
+    // ── Dummy data per tab ───────────────────────────────────────
+    const DATA = {
+      'INBOX': [],
+      'Follow Up': [
+        { sender: 'me, Sam Lee',       date: 'Jun 08', label: 'followup', unread: false, subject: 'Re: Project draft v2',            preview: 'Thanks Sam — I\'ll take a look and send notes by end of day Friday.' },
+        { sender: 'Riley Morgan, me',  date: 'Jun 03', label: 'followup', unread: false, subject: 'Website redesign — next steps',   preview: 'Following up to confirm the kickoff call. Let me know if Wednesday still works…' },
+        { sender: 'Casey Brooks',      date: 'Jun 01', label: 'followup', unread: false, subject: 'Demo recap + proposal',           preview: 'Thanks for the time today. Attaching the proposal and a one-pager for review.' },
+      ],
+      'To Do': [
+        { sender: 'Jane Doe',          date: 'Jun 12', label: 'todo', unread: true,  subject: 'Sample subject line one',          preview: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor…' },
+        { sender: 'Example App',       date: 'Jun 09', label: 'todo', unread: false, subject: 'Verify your email address',        preview: 'Please confirm your email to finish setting up your Example App account…' },
+        { sender: 'Pat Taylor',        date: 'Jun 06', label: 'todo', unread: false, subject: 'Quick question about pricing',     preview: 'Hi, just wanted to follow up on the quote you sent over last week — does it…' },
+        { sender: 'Avery Quinn',       date: 'May 30', label: 'todo', unread: false, subject: 'Re: Onboarding checklist',         preview: 'Awesome — please review the attached checklist and let me know if anything…' },
+      ],
+      'To Watch': [
+        { sender: 'VideoSite',         date: 'Jun 05', label: 'watch', unread: false, subject: 'New episode you might like',       preview: 'A new episode from one of your subscribed channels is now available to watch…' },
+      ],
+    };
+
+    const LABEL_CLASS = { todo: 'label-todo', followup: 'label-followup', watch: 'label-watch' };
+    const LABEL_TEXT  = { todo: 'To Do',      followup: 'Follow Up',      watch: 'To Watch'   };
+
+    function renderList(tab) {
+      const list = document.getElementById('email-list');
+      const rows = DATA[tab] || [];
+      document.getElementById('pagination').textContent = rows.length ? `1–${rows.length} of ${rows.length}` : '0 of 0';
+      if (rows.length === 0) {
+        list.innerHTML = `<div class="empty">No conversations.</div>`;
+        return;
+      }
+      list.innerHTML = rows.map(r => `
+        <div class="email-row${r.unread ? ' unread' : ''}">
+          <div class="row-check"></div>
+          <div class="row-star"><svg viewBox="0 0 24 24"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03z"/></svg></div>
+          <div class="sender">${r.sender}</div>
+          <div class="subject-line">
+            ${r.label ? `<span class="label-pill ${LABEL_CLASS[r.label]}">${LABEL_TEXT[r.label]}</span>` : ''}
+            <span class="subject">${r.subject}</span>
+            <span class="preview"> — ${r.preview}</span>
+          </div>
+          <div class="date">${r.date}</div>
+        </div>
+      `).join('');
+    }
+
+    function setActive(tab) {
+      // Update extension tab bar
+      document.querySelectorAll('.glt-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === tab);
+      });
+      // Update sidebar nav
+      document.querySelectorAll('.nav-item[data-tab]').forEach(n => {
+        n.classList.toggle('active', n.dataset.tab === tab);
+      });
+      // Update search box (mimics Gmail's behavior)
+      const search = document.getElementById('search-box');
+      search.value = tab === 'INBOX' ? '' : `label:${tab.toLowerCase().replace(/ /g, '-')}`;
+      renderList(tab);
+    }
+
+    // Wire up clicks on both the bar tabs and the sidebar
+    document.querySelectorAll('.glt-tab[data-tab], .nav-item[data-tab]').forEach(el => {
+      el.addEventListener('click', () => setActive(el.dataset.tab));
+    });
+
+    setActive('INBOX');
+  </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Gmail Label Tabs",
+  "version": "1.0",
+  "description": "Adds a pinned tab bar to Gmail for instant label navigation.",
+
+  "permissions": [
+    "identity",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "https://www.googleapis.com/*"
+  ],
+
+  "oauth2": {
+    "client_id": "535091640311-rk4r7f8sbckjhnrgo49iki3cdp5e8knf.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.labels"
+    ]
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Gmail Label Tabs"
+  }
+}
