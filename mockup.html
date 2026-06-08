@@ -179,6 +179,17 @@
     .convo-text { margin-top: 14px; font-size: 14px; line-height: 1.7; color: #202124; }
     .convo-date { margin-left: auto; font-size: 12px; color: #5f6368; }
 
+    /* Inline Hold button on hovered inbox rows */
+    .glt-row-hold {
+      position: fixed; z-index: 70; display: none; align-items: center; gap: 6px;
+      height: 28px; padding: 0 12px; font-size: 12px; font-weight: 500; color: #1a73e8;
+      background: #fff; border: 1px solid #dadce0; border-radius: 14px; cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,.18); font-family: inherit;
+    }
+    .glt-row-hold.show { display: inline-flex; }
+    .glt-row-hold:hover { background: #e8f0fe; border-color: #1a73e8; }
+    .glt-row-hold svg { width: 15px; height: 15px; }
+
     /* ── Hold duration popover (matches styles.css .glt-pop) ───── */
     .glt-pop {
       position: absolute;
@@ -357,6 +368,12 @@
     </div>
   </div>
 
+  <!-- Floating inline Hold button (follows hovered inbox row) -->
+  <button class="glt-row-hold" id="glt-row-hold">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+    <span>Hold</span>
+  </button>
+
   <!-- Held manager modal -->
   <div class="glt-overlay" id="glt-overlay"></div>
   <div class="glt-panel" id="glt-panel" role="dialog" aria-modal="true">
@@ -441,15 +458,18 @@
 
     // ── Hold popover ─────────────────────────────────────────────
     const pop = document.getElementById('glt-pop');
-    function openPop() {
-      if (!openId) return;
-      const bar = document.getElementById('glt-bar').getBoundingClientRect();
+    let holdTarget = null;   // id of the email the picker will hold
+
+    // Anchor the popover under a given element (bar button or row button).
+    function openPopAt(anchorEl, targetId) {
+      holdTarget = targetId;
       const main = document.querySelector('.main').getBoundingClientRect();
-      const hold = document.getElementById('glt-hold').getBoundingClientRect();
+      const a = anchorEl.getBoundingClientRect();
       pop.classList.add('show');
-      pop.style.top = (bar.bottom - main.top + 6) + 'px';
-      pop.style.left = Math.max(8, hold.right - main.left - pop.offsetWidth) + 'px';
+      pop.style.top = (a.bottom - main.top + 6) + 'px';
+      pop.style.left = Math.max(8, a.right - main.left - pop.offsetWidth) + 'px';
     }
+    function openPop() { if (openId) openPopAt(document.getElementById('glt-hold'), openId); }
     function closePop() { pop.classList.remove('show'); }
 
     document.getElementById('glt-hold').addEventListener('click', () => {
@@ -467,15 +487,42 @@
 
     function commitHold(whenLabel) {
       closePop();
-      const m = INBOX.find(x => x.id === openId);
+      const id = holdTarget || openId;
+      const m = INBOX.find(x => x.id === id);
       if (!m) return;
       removedFromInbox.add(m.id);
       HELD.push({ id: m.id, subject: m.subject, when: whenLabel });
       updateHeldUI();
       toast(`Held — returns ${whenLabel}`);
-      backToList();
+      document.getElementById('glt-row-hold').classList.remove('show');
+      if (openId) backToList();
       renderList();
     }
+
+    // ── Inline Hold button that follows the hovered inbox row ─────
+    const rowBtn = document.getElementById('glt-row-hold');
+    let rowTargetId = null, rowHideT;
+    function showRowBtn(row) {
+      rowTargetId = row.dataset.id;
+      const r = row.getBoundingClientRect();
+      rowBtn.classList.add('show');
+      rowBtn.style.top = (r.top + r.height/2 - 14) + 'px';
+      rowBtn.style.left = (r.right - rowBtn.offsetWidth - 80) + 'px';
+    }
+    function hideRowBtnSoon() {
+      clearTimeout(rowHideT);
+      rowHideT = setTimeout(() => { if (!pop.classList.contains('show')) rowBtn.classList.remove('show'); }, 250);
+    }
+    document.getElementById('email-list').addEventListener('mouseover', e => {
+      const row = e.target.closest('.email-row');
+      if (row) { clearTimeout(rowHideT); showRowBtn(row); }
+    });
+    document.getElementById('email-list').addEventListener('mouseout', e => {
+      if (!e.relatedTarget?.closest?.('.email-row') && e.relatedTarget !== rowBtn) hideRowBtnSoon();
+    });
+    rowBtn.addEventListener('mouseenter', () => clearTimeout(rowHideT));
+    rowBtn.addEventListener('mouseleave', hideRowBtnSoon);
+    rowBtn.addEventListener('click', () => openPopAt(rowBtn, rowTargetId));
 
     // ── Held pill + manager ──────────────────────────────────────
     function updateHeldUI() {
@@ -552,7 +599,16 @@
     updateHeldUI();
 
     // Hooks the screenshot script drives to pose specific states.
-    window.__demo = { openConversation, openPop, openManager, commitHold, backToList };
+    window.__demo = {
+      openConversation, openPop, openManager, commitHold, backToList,
+      // Pose the inline row-hold affordance on a given inbox row, picker open.
+      hoverRowHold(id) {
+        const row = document.querySelector(`.email-row[data-id="${id}"]`);
+        if (!row) return;
+        showRowBtn(row);
+        openPopAt(rowBtn, id);
+      },
+    };
   </script>
 </body>
 </html>

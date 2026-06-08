@@ -12,7 +12,8 @@ A Chrome extension (Manifest V3) that adds a sticky tab bar inside Gmail for ins
 - Saved to `chrome.storage.sync` — persists across sessions and syncs across devices
 
 ### Hold (boomerang)
-- Open any conversation and click **Hold** in the tab bar
+- **From the inbox list:** hover any row and click the inline **Hold** button — no need to open the email
+- **From an open conversation:** click **Hold** in the tab bar
 - Pick when it should come back: presets (1 hour, 3 hours, tomorrow 9 AM, 2 days, 1 week) or a custom date/time
 - The email is archived out of the inbox and tagged with a **⏳ Held** label
 - When the timer expires, a background alarm returns it to the inbox and marks it **unread** so it stands out

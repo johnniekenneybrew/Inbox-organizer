@@ -351,16 +351,31 @@ function nextHour(hour) {
   return t.getTime() - Date.now();
 }
 
+let pickerOpen = false;
+
+// Hold button in the bar — acts on the currently-open conversation.
 function onHoldClick() {
   const convo = getOpenConversation();
   if (!convo) return;
+  const anchor = document.querySelector(`#${BAR_ID} .glt-hold`);
+  openHoldPicker(anchor, convo, (held) => {
+    // Gmail will drop the archived thread from the current view on its own; nudge
+    // back to the inbox/list so the user sees it leave.
+    if (held && getOpenConversation()) history.back();
+  });
+}
+
+/**
+ * Opens the duration popover anchored to `anchorEl` and holds `target`
+ * (a { threadId | messageId } descriptor) for the chosen time. `onAfter(held)`
+ * runs once the request resolves, with whether the hold succeeded.
+ */
+function openHoldPicker(anchorEl, target, onAfter) {
   document.getElementById(POPOVER_ID)?.remove();
 
-  const anchor = document.querySelector(`#${BAR_ID} .glt-hold`);
   const pop = document.createElement('div');
   pop.id = POPOVER_ID;
   pop.className = 'glt-pop';
-
   pop.innerHTML = `
     <p class="glt-pop-title">Return to inbox…</p>
     ${HOLD_PRESETS.map(
@@ -374,12 +389,13 @@ function onHoldClick() {
   `;
 
   document.body.appendChild(pop);
-  positionPopover(pop, anchor);
+  positionPopover(pop, anchorEl);
+  pickerOpen = true;
 
   pop.querySelectorAll('.glt-pop-opt').forEach((opt) => {
     opt.addEventListener('click', () => {
       const preset = HOLD_PRESETS[Number(opt.dataset.i)];
-      commitHold(convo, Date.now() + preset.ms());
+      commitHold(target, Date.now() + preset.ms(), onAfter);
     });
   });
 
@@ -391,13 +407,13 @@ function onHoldClick() {
       flashError(pop, 'Pick a time in the future.');
       return;
     }
-    commitHold(convo, when);
+    commitHold(target, when, onAfter);
   });
 
   // Dismiss on outside click / Escape.
   setTimeout(() => {
     const onAway = (e) => {
-      if (!pop.contains(e.target) && e.target !== anchor) closePopover();
+      if (!pop.contains(e.target) && e.target !== anchorEl) closePopover();
     };
     const onEsc = (e) => { if (e.key === 'Escape') closePopover(); };
     pop._cleanup = () => {
@@ -421,25 +437,122 @@ function closePopover() {
   const pop = document.getElementById(POPOVER_ID);
   pop?._cleanup?.();
   pop?.remove();
+  pickerOpen = false;
 }
 
-async function commitHold(convo, returnAt) {
+async function commitHold(target, returnAt, onAfter) {
   closePopover();
   try {
     const res = await sendBg({
       type: 'HOLD_THREAD',
-      threadId: convo.threadId,
-      messageId: convo.messageId,
+      threadId: target.threadId,
+      messageId: target.messageId,
       returnAt,
     });
     await refreshHolds();
     toast(`Held — returns ${formatWhen(res.returnAt)}`);
-    // Gmail will drop the archived thread from the current view on its own; nudge
-    // back to the inbox/list so the user sees it leave.
-    if (getOpenConversation()) history.back();
+    onAfter?.(true);
   } catch (err) {
     toast(`Couldn't hold this email: ${err.message}`, true);
+    onAfter?.(false);
   }
+}
+
+// ─── Hold: inline button on inbox list rows ────────────────────────────────────
+
+/**
+ * Pulls the API thread identifier out of a list row. Gmail tags rows with
+ * `data-legacy-thread-id` (the hex id the API wants); we fall back to a legacy
+ * message id, then to parsing `data-thread-id`. Returns null if none are found.
+ */
+function getRowThread(row) {
+  const t = row.matches('[data-legacy-thread-id]')
+    ? row
+    : row.querySelector('[data-legacy-thread-id]');
+  if (t) return { threadId: t.getAttribute('data-legacy-thread-id'), rowEl: row };
+
+  const m = row.querySelector('[data-legacy-last-message-id], [data-legacy-message-id]');
+  if (m) {
+    return {
+      messageId:
+        m.getAttribute('data-legacy-last-message-id') ||
+        m.getAttribute('data-legacy-message-id'),
+      rowEl: row,
+    };
+  }
+
+  const dt = row.querySelector('[data-thread-id]');
+  if (dt) {
+    const id = dt.getAttribute('data-thread-id').replace(/^#thread-[fas]:/, '');
+    if (id) return { threadId: id, rowEl: row };
+  }
+  return null;
+}
+
+let rowHoldHideTimer;
+
+/**
+ * A single floating "Hold" button that follows the hovered inbox row, so the
+ * user can hold a conversation without opening it. Built once; uses event
+ * delegation so it survives Gmail's constant row re-rendering.
+ */
+function setupRowHoldHover() {
+  const btn = document.createElement('button');
+  btn.id = 'glt-row-hold';
+  btn.className = 'glt-row-hold';
+  btn.title = 'Hold this email';
+  btn.innerHTML = `${clockIcon()}<span>Hold</span>`;
+  btn.style.display = 'none';
+  document.body.appendChild(btn);
+
+  let target = null;
+
+  const hideSoon = () => {
+    clearTimeout(rowHoldHideTimer);
+    rowHoldHideTimer = setTimeout(() => {
+      if (!pickerOpen) btn.style.display = 'none';
+    }, 250);
+  };
+
+  const showFor = (row) => {
+    const t = getRowThread(row);
+    if (!t) return; // can't identify this row — leave the button hidden
+    target = t;
+    const r = row.getBoundingClientRect();
+    btn.style.display = 'inline-flex';
+    btn.style.top = `${r.top + r.height / 2 - btn.offsetHeight / 2}px`;
+    // Sit at the right of the row, roughly where Gmail shows its own hover actions.
+    btn.style.left = `${r.right - btn.offsetWidth - 16}px`;
+  };
+
+  document.addEventListener('mouseover', (e) => {
+    const row = e.target.closest?.('tr.zA');
+    if (row && findVisibleMain()?.contains(row)) {
+      clearTimeout(rowHoldHideTimer);
+      showFor(row);
+    }
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const to = e.relatedTarget;
+    const stillOnButton = to && (to === btn || btn.contains(to));
+    const stillOnRow = to?.closest?.('tr.zA');
+    if (!stillOnButton && !stillOnRow) hideSoon();
+  });
+
+  btn.addEventListener('mouseenter', () => clearTimeout(rowHoldHideTimer));
+  btn.addEventListener('mouseleave', hideSoon);
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!target) return;
+    openHoldPicker(btn, target, (held) => {
+      // Optimistically drop the row so it visibly leaves the inbox; Gmail
+      // reconciles on its next refresh.
+      if (held && target?.rowEl) target.rowEl.style.display = 'none';
+      btn.style.display = 'none';
+    });
+  });
 }
 
 // ─── Hold: manager modal ───────────────────────────────────────────────────────
@@ -782,6 +895,7 @@ async function reconcileLabelNames(pinned) {
 async function init() {
   cachedPinned = await reconcileLabelNames(await loadPinned());
   refreshHolds();
+  setupRowHoldHover();
 
   if (injectBar(cachedPinned)) {
     // Gmail was already ready — start observing immediately.
