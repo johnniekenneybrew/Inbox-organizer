@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Gmail Label Tabs — Mockup</title>
+  <title>Gmail Label Tabs + Hold — Mockup</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Google Sans', Roboto, Arial, sans-serif; }
     body { background: #f6f8fc; color: #202124; }
@@ -38,7 +38,7 @@
     .labels-header { padding: 16px 12px 4px 26px; font-size: 14px; color: #202124; display: flex; align-items: center; justify-content: space-between; }
 
     /* Main pane */
-    .main { flex: 1; background: #fff; border-radius: 16px 0 0 0; margin: 0 8px 8px 0; overflow: hidden; display: flex; flex-direction: column; }
+    .main { flex: 1; background: #fff; border-radius: 16px 0 0 0; margin: 0 8px 8px 0; overflow: hidden; display: flex; flex-direction: column; position: relative; }
 
     /* ── Our tab bar ─────────────────────────────────────────── */
     .glt-bar {
@@ -48,7 +48,7 @@
       padding: 0 12px;
       background: #fff;
       border-bottom: 1px solid #e0e0e0;
-      min-height: 44px;
+      min-height: 48px;
       flex-shrink: 0;
     }
     .glt-tab {
@@ -69,15 +69,59 @@
       font-weight: 600;
       border-bottom: 3px solid #1a73e8;
     }
-    .glt-gear {
+
+    /* Hold button (matches styles.css .glt-hold) */
+    .glt-hold {
       margin-left: auto;
+      align-self: center;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 14px;
+      margin-right: 4px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #1a73e8;
+      background: transparent;
+      border: 1px solid #dadce0;
+      border-radius: 16px;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .glt-hold:hover { background: #e8f0fe; border-color: #1a73e8; }
+    .glt-hold svg { width: 16px; height: 16px; }
+    .glt-hold.disabled { color: #9aa0a6; opacity: .6; cursor: default; pointer-events: none; }
+
+    /* Held pill */
+    .glt-held-pill {
+      align-self: center;
+      display: inline-flex;
+      align-items: center;
+      height: 32px;
+      margin-right: 4px;
+      padding: 0 12px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #5f6368;
+      background: #f1f3f4;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .glt-held-pill:hover { background: #e8eaed; }
+
+    .glt-gear {
+      align-self: center;
       background: transparent;
       border: none;
       cursor: pointer;
       color: #5f6368;
       display: flex;
       align-items: center;
-      padding: 0 12px;
+      padding: 0 10px;
     }
     .glt-gear:hover { color: #1a73e8; }
     .glt-gear svg { width: 18px; height: 18px; fill: currentColor; }
@@ -92,13 +136,12 @@
 
     /* ── Email list ───────────────────────────────────────────── */
     .email-list { flex: 1; overflow-y: auto; }
-    .email-row { display: flex; align-items: center; gap: 12px; padding: 0 16px 0 12px; height: 40px; border-bottom: 1px solid #f1f3f4; cursor: pointer; font-size: 14px; }
+    .email-row { display: flex; align-items: center; gap: 12px; padding: 0 16px 0 12px; height: 44px; border-bottom: 1px solid #f1f3f4; cursor: pointer; font-size: 14px; }
     .email-row:hover { box-shadow: inset 1px 0 0 #dadce0, inset -1px 0 0 #dadce0, 0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15); z-index: 1; position: relative; }
     .email-row.unread { background: #f2f6fc; font-weight: 700; }
     .email-row.unread .sender, .email-row.unread .subject-line { color: #202124; }
     .row-check { width: 18px; height: 18px; border: 2px solid #5f6368; border-radius: 2px; flex-shrink: 0; }
     .row-star svg { width: 18px; height: 18px; fill: #dadce0; }
-    .row-label { width: 16px; height: 16px; flex-shrink: 0; }
     .sender { width: 168px; color: #5f6368; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .subject-line { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #5f6368; }
     .subject { font-weight: inherit; }
@@ -110,6 +153,7 @@
     .label-todo { background: #d93025; color: #fff; }
     .label-followup { background: #1a73e8; color: #fff; }
     .label-watch { background: #f9ab00; color: #fff; }
+    .label-held { background: #e8eaed; color: #3c4043; }
 
     /* Empty state */
     .empty { padding: 80px 24px; text-align: center; color: #5f6368; }
@@ -119,6 +163,71 @@
     .dot-followup { background: #1a73e8; }
     .dot-todo { background: #d93025; }
     .dot-watch { background: #f9ab00; }
+    .dot-held { background: #9aa0a6; }
+
+    /* ── Conversation (open email) view ───────────────────────── */
+    .convo { flex: 1; overflow-y: auto; padding: 0; display: none; }
+    .convo.show { display: block; }
+    .convo-toolbar { display: flex; align-items: center; gap: 4px; padding: 8px 16px; border-bottom: 1px solid #f1f3f4; }
+    .convo-body { padding: 20px 32px; }
+    .convo-subject { font-size: 22px; font-weight: 400; margin-bottom: 18px; }
+    .convo-subject .label-pill { font-size: 12px; vertical-align: middle; }
+    .convo-msg { display: flex; gap: 16px; }
+    .convo-av { width: 40px; height: 40px; border-radius: 50%; background: #7e57c2; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 500; flex-shrink: 0; }
+    .convo-from { font-size: 14px; font-weight: 700; }
+    .convo-to { font-size: 12px; color: #5f6368; }
+    .convo-text { margin-top: 14px; font-size: 14px; line-height: 1.7; color: #202124; }
+    .convo-date { margin-left: auto; font-size: 12px; color: #5f6368; }
+
+    /* ── Hold duration popover (matches styles.css .glt-pop) ───── */
+    .glt-pop {
+      position: absolute;
+      z-index: 50;
+      min-width: 210px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,.14), 0 1px 14px rgba(0,0,0,.12);
+      padding: 8px;
+      display: none;
+    }
+    .glt-pop.show { display: block; }
+    .glt-pop-title { margin: 4px 8px 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: #5f6368; }
+    .glt-pop-opt { display: block; width: 100%; text-align: left; background: transparent; border: none; cursor: pointer; padding: 9px 12px; font-size: 14px; color: #202124; border-radius: 6px; font-family: inherit; }
+    .glt-pop-opt:hover { background: #f1f3f4; color: #1a73e8; }
+    .glt-pop-custom { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding: 8px; border-top: 1px solid #e0e0e0; }
+    .glt-pop-clabel { font-size: 12px; color: #5f6368; }
+    .glt-pop-dt { flex: 1; min-width: 0; font-size: 12px; padding: 4px; border: 1px solid #dadce0; border-radius: 6px; }
+    .glt-pop-cgo { background: transparent; border: none; cursor: pointer; font-size: 13px; font-weight: 500; color: #1a73e8; padding: 4px 10px; border-radius: 6px; font-family: inherit; }
+    .glt-pop-cgo:hover { background: #e8f0fe; }
+
+    /* ── Held manager modal ───────────────────────────────────── */
+    .glt-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.38); z-index: 90; display: none; }
+    .glt-overlay.show { display: block; }
+    .glt-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 460px; max-width: calc(100vw - 32px); max-height: 80vh; background: #fff; border-radius: 12px; box-shadow: 0 6px 10px rgba(0,0,0,.14), 0 1px 18px rgba(0,0,0,.12), 0 3px 5px rgba(0,0,0,.2); z-index: 91; display: none; flex-direction: column; }
+    .glt-panel.show { display: flex; }
+    .glt-sp-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #e0e0e0; }
+    .glt-sp-title { font-size: 18px; font-weight: 500; }
+    .glt-sp-x { background: transparent; border: none; cursor: pointer; color: #5f6368; font-size: 16px; width: 32px; height: 32px; border-radius: 50%; }
+    .glt-sp-x:hover { background: #f1f3f4; }
+    .glt-sp-list { padding: 8px 12px 16px; overflow-y: auto; }
+    .glt-sp-msg { padding: 16px 12px; font-size: 14px; color: #5f6368; }
+    .glt-held-row { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 8px; }
+    .glt-held-row:hover { background: #f8f9fa; }
+    .glt-held-meta { flex: 1; min-width: 0; }
+    .glt-held-subj { font-size: 14px; color: #202124; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .glt-held-when { font-size: 12px; color: #5f6368; margin-top: 2px; }
+    .glt-held-now { background: transparent; border: none; cursor: pointer; font-size: 13px; font-weight: 500; color: #1a73e8; padding: 6px 10px; border-radius: 6px; font-family: inherit; white-space: nowrap; }
+    .glt-held-now:hover { background: #e8f0fe; }
+    .glt-held-del { background: transparent; border: none; cursor: pointer; color: #5f6368; font-size: 14px; width: 28px; height: 28px; border-radius: 50%; }
+    .glt-held-del:hover { background: #f1f3f4; color: #c5221f; }
+
+    /* ── Toast ────────────────────────────────────────────────── */
+    .glt-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 95; background: #202124; color: #fff; font-size: 13px; padding: 12px 20px; border-radius: 8px; box-shadow: 0 3px 5px rgba(0,0,0,.2); display: none; }
+    .glt-toast.show { display: block; }
+
+    /* Callout chips so the screenshot reads clearly */
+    .hint-chip { position: absolute; z-index: 60; background: #202124; color: #fff; font-size: 12px; font-weight: 500; padding: 6px 10px; border-radius: 6px; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+    .hint-chip::after { content: ''; position: absolute; border: 6px solid transparent; }
   </style>
 </head>
 <body>
@@ -151,7 +260,7 @@
       </div>
       <div class="nav-item active" data-tab="INBOX">
         <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm0 12h-4c0 1.66-1.35 3-3 3s-3-1.34-3-3H4.99V5H19v10z"/></svg>
-        Inbox
+        Inbox <span class="count" id="inbox-count">3</span>
       </div>
       <div class="nav-item">
         <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
@@ -184,6 +293,10 @@
         <span class="label-dot dot-watch"></span>
         To Watch <span class="count">1</span>
       </div>
+      <div class="nav-item" data-tab="Held">
+        <span class="label-dot dot-held"></span>
+        ⏳ Held <span class="count" id="sidebar-held-count">0</span>
+      </div>
     </div>
 
     <!-- Main pane -->
@@ -195,92 +308,251 @@
         <button class="glt-tab" data-tab="Follow Up">Follow Up</button>
         <button class="glt-tab" data-tab="To Do">To Do</button>
         <button class="glt-tab" data-tab="To Watch">To Watch</button>
+        <button class="glt-hold disabled" id="glt-hold" title="Open an email to hold it">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+          <span>Hold</span>
+        </button>
+        <button class="glt-held-pill" id="glt-held-pill" style="display:none" title="Manage held emails"></button>
         <button class="glt-gear" title="Configure label tabs">
           <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96a7.28 7.28 0 00-1.62-.94l-.36-2.54A.48.48 0 0014 3h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 00-.59.22L2.74 9.47a.48.48 0 00.12.61l2.03 1.58a7.44 7.44 0 000 1.88l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 00-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
         </button>
       </div>
 
-      <!-- Gmail's toolbar -->
-      <div class="toolbar">
-        <div class="tb-btn"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm0 16H5V5h14v14z"/></svg></div>
-        <div class="tb-btn"><svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></div>
-        <div class="tb-btn"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
-        <div class="toolbar-spacer"></div>
-        <span class="pagination" id="pagination">1–6 of 6</span>
+      <!-- LIST VIEW -->
+      <div id="list-view" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+        <div class="toolbar">
+          <div class="tb-btn"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm0 16H5V5h14v14z"/></svg></div>
+          <div class="tb-btn"><svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></div>
+          <div class="tb-btn"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+          <div class="toolbar-spacer"></div>
+          <span class="pagination" id="pagination">1–3 of 3</span>
+        </div>
+        <div class="email-list" id="email-list"></div>
       </div>
 
-      <!-- Email list -->
-      <div class="email-list" id="email-list"></div>
+      <!-- CONVERSATION VIEW -->
+      <div class="convo" id="convo-view">
+        <div class="convo-toolbar">
+          <div class="tb-btn" id="convo-back" title="Back to Inbox"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg></div>
+          <div class="tb-btn"><svg viewBox="0 0 24 24"><path d="M20 5h-3.17L15 3H9L7.17 5H4v2h16V5zm-1 14H5V8h14v11z"/></svg></div>
+          <div class="tb-btn"><svg viewBox="0 0 24 24"><path d="M16 9v10H8V9h8m-1.5-6h-5l-1 1H5v2h14V4h-3.5l-1-1zM18 7H6v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7z"/></svg></div>
+        </div>
+        <div class="convo-body" id="convo-body"></div>
+      </div>
+
+      <!-- Hold popover -->
+      <div class="glt-pop" id="glt-pop">
+        <p class="glt-pop-title">Return to inbox…</p>
+        <button class="glt-pop-opt" data-when="In 1 hour">In 1 hour</button>
+        <button class="glt-pop-opt" data-when="In 3 hours">In 3 hours</button>
+        <button class="glt-pop-opt" data-when="tomorrow 9:00 AM">Tomorrow 9 AM</button>
+        <button class="glt-pop-opt" data-when="In 2 days">In 2 days</button>
+        <button class="glt-pop-opt" data-when="In 1 week">In 1 week</button>
+        <div class="glt-pop-custom">
+          <span class="glt-pop-clabel">Custom</span>
+          <input type="datetime-local" class="glt-pop-dt">
+          <button class="glt-pop-cgo">Set</button>
+        </div>
+      </div>
     </div>
   </div>
 
+  <!-- Held manager modal -->
+  <div class="glt-overlay" id="glt-overlay"></div>
+  <div class="glt-panel" id="glt-panel" role="dialog" aria-modal="true">
+    <div class="glt-sp-head">
+      <h2 class="glt-sp-title">Held emails</h2>
+      <button class="glt-sp-x" id="glt-panel-x">&#x2715;</button>
+    </div>
+    <div class="glt-sp-list" id="glt-panel-list"></div>
+  </div>
+
+  <!-- Toast -->
+  <div class="glt-toast" id="glt-toast"></div>
+
   <script>
-    // ── Dummy data per tab ───────────────────────────────────────
-    const DATA = {
-      'INBOX': [],
-      'Follow Up': [
-        { sender: 'me, Sam Lee',       date: 'Jun 08', label: 'followup', unread: false, subject: 'Re: Project draft v2',            preview: 'Thanks Sam — I\'ll take a look and send notes by end of day Friday.' },
-        { sender: 'Riley Morgan, me',  date: 'Jun 03', label: 'followup', unread: false, subject: 'Website redesign — next steps',   preview: 'Following up to confirm the kickoff call. Let me know if Wednesday still works…' },
-        { sender: 'Casey Brooks',      date: 'Jun 01', label: 'followup', unread: false, subject: 'Demo recap + proposal',           preview: 'Thanks for the time today. Attaching the proposal and a one-pager for review.' },
-      ],
-      'To Do': [
-        { sender: 'Jane Doe',          date: 'Jun 12', label: 'todo', unread: true,  subject: 'Sample subject line one',          preview: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor…' },
-        { sender: 'Example App',       date: 'Jun 09', label: 'todo', unread: false, subject: 'Verify your email address',        preview: 'Please confirm your email to finish setting up your Example App account…' },
-        { sender: 'Pat Taylor',        date: 'Jun 06', label: 'todo', unread: false, subject: 'Quick question about pricing',     preview: 'Hi, just wanted to follow up on the quote you sent over last week — does it…' },
-        { sender: 'Avery Quinn',       date: 'May 30', label: 'todo', unread: false, subject: 'Re: Onboarding checklist',         preview: 'Awesome — please review the attached checklist and let me know if anything…' },
-      ],
-      'To Watch': [
-        { sender: 'VideoSite',         date: 'Jun 05', label: 'watch', unread: false, subject: 'New episode you might like',       preview: 'A new episode from one of your subscribed channels is now available to watch…' },
-      ],
-    };
+    // ── Data ─────────────────────────────────────────────────────
+    const INBOX = [
+      { id: 'm1', sender: 'Sam Lee',        date: 'Jun 08', unread: true,  subject: 'Contract — need your sign-off',  preview: 'Hi — attaching the final contract. Could you review and sign by Thursday so we can…', from: 'sam.lee@northwind.com', body: 'Hi,\n\nAttaching the final contract for the Q3 engagement. Could you review and send your sign-off by Thursday so we can keep the start date on track?\n\nHappy to jump on a quick call if anything needs changing.\n\nThanks,\nSam' },
+      { id: 'm2', sender: 'Jordan Patel',   date: 'Jun 07', unread: false, subject: 'Re: Invoice #2041',            preview: 'Thanks for the reminder — I\'ll get this routed to accounts payable this week and…', from: 'jordan@brightlabs.io', body: 'Thanks for the reminder — I\'ll get this routed to accounts payable this week and confirm once it\'s scheduled.\n\nBest,\nJordan' },
+      { id: 'm3', sender: 'Taylor Reed',    date: 'Jun 06', unread: false, subject: 'Partnership intro',            preview: 'Great meeting you at the conference! I\'d love to set up time to explore how our teams…', from: 'taylor.reed@vectorhq.com', body: 'Great meeting you at the conference!\n\nI\'d love to set up time to explore how our teams might work together. Are you free sometime next week for a 30-minute intro call?\n\nCheers,\nTaylor' },
+    ];
 
-    const LABEL_CLASS = { todo: 'label-todo', followup: 'label-followup', watch: 'label-watch' };
-    const LABEL_TEXT  = { todo: 'To Do',      followup: 'Follow Up',      watch: 'To Watch'   };
+    const HELD = []; // { id, subject, when }
 
-    function renderList(tab) {
+    const removedFromInbox = new Set();
+
+    // ── List rendering ───────────────────────────────────────────
+    function renderList() {
       const list = document.getElementById('email-list');
-      const rows = DATA[tab] || [];
+      const rows = INBOX.filter(r => !removedFromInbox.has(r.id));
       document.getElementById('pagination').textContent = rows.length ? `1–${rows.length} of ${rows.length}` : '0 of 0';
+      document.getElementById('inbox-count').textContent = rows.length;
       if (rows.length === 0) {
         list.innerHTML = `<div class="empty">No conversations.</div>`;
         return;
       }
       list.innerHTML = rows.map(r => `
-        <div class="email-row${r.unread ? ' unread' : ''}">
+        <div class="email-row${r.unread ? ' unread' : ''}" data-id="${r.id}">
           <div class="row-check"></div>
           <div class="row-star"><svg viewBox="0 0 24 24"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03z"/></svg></div>
           <div class="sender">${r.sender}</div>
-          <div class="subject-line">
-            ${r.label ? `<span class="label-pill ${LABEL_CLASS[r.label]}">${LABEL_TEXT[r.label]}</span>` : ''}
-            <span class="subject">${r.subject}</span>
-            <span class="preview"> — ${r.preview}</span>
-          </div>
+          <div class="subject-line"><span class="subject">${r.subject}</span><span class="preview"> — ${r.preview}</span></div>
           <div class="date">${r.date}</div>
         </div>
       `).join('');
+      list.querySelectorAll('.email-row').forEach(row =>
+        row.addEventListener('click', () => openConversation(row.dataset.id))
+      );
     }
 
-    function setActive(tab) {
-      // Update extension tab bar
-      document.querySelectorAll('.glt-tab').forEach(t => {
-        t.classList.toggle('active', t.dataset.tab === tab);
-      });
-      // Update sidebar nav
-      document.querySelectorAll('.nav-item[data-tab]').forEach(n => {
-        n.classList.toggle('active', n.dataset.tab === tab);
-      });
-      // Update search box (mimics Gmail's behavior)
-      const search = document.getElementById('search-box');
-      search.value = tab === 'INBOX' ? '' : `label:${tab.toLowerCase().replace(/ /g, '-')}`;
-      renderList(tab);
+    // ── Conversation view ────────────────────────────────────────
+    let openId = null;
+    function openConversation(id) {
+      const m = INBOX.find(x => x.id === id);
+      if (!m) return;
+      openId = id;
+      document.getElementById('list-view').style.display = 'none';
+      document.getElementById('convo-view').classList.add('show');
+      document.getElementById('convo-body').innerHTML = `
+        <div class="convo-subject">${m.subject}</div>
+        <div class="convo-msg">
+          <div class="convo-av">${m.sender[0]}</div>
+          <div style="flex:1">
+            <div style="display:flex"><div><div class="convo-from">${m.sender} &lt;${m.from}&gt;</div><div class="convo-to">to me</div></div><div class="convo-date">${m.date}, 9:14 AM</div></div>
+            <div class="convo-text">${m.body.replace(/\n/g, '<br>')}</div>
+          </div>
+        </div>`;
+      const hold = document.getElementById('glt-hold');
+      hold.classList.remove('disabled');
+      hold.title = 'Hold this email — return it to the inbox after a timer';
     }
 
-    // Wire up clicks on both the bar tabs and the sidebar
-    document.querySelectorAll('.glt-tab[data-tab], .nav-item[data-tab]').forEach(el => {
-      el.addEventListener('click', () => setActive(el.dataset.tab));
+    function backToList() {
+      openId = null;
+      document.getElementById('convo-view').classList.remove('show');
+      document.getElementById('list-view').style.display = 'flex';
+      const hold = document.getElementById('glt-hold');
+      hold.classList.add('disabled');
+      hold.title = 'Open an email to hold it';
+      closePop();
+    }
+    document.getElementById('convo-back').addEventListener('click', backToList);
+
+    // ── Hold popover ─────────────────────────────────────────────
+    const pop = document.getElementById('glt-pop');
+    function openPop() {
+      if (!openId) return;
+      const bar = document.getElementById('glt-bar').getBoundingClientRect();
+      const main = document.querySelector('.main').getBoundingClientRect();
+      const hold = document.getElementById('glt-hold').getBoundingClientRect();
+      pop.classList.add('show');
+      pop.style.top = (bar.bottom - main.top + 6) + 'px';
+      pop.style.left = Math.max(8, hold.right - main.left - pop.offsetWidth) + 'px';
+    }
+    function closePop() { pop.classList.remove('show'); }
+
+    document.getElementById('glt-hold').addEventListener('click', () => {
+      if (document.getElementById('glt-hold').classList.contains('disabled')) return;
+      pop.classList.contains('show') ? closePop() : openPop();
     });
 
-    setActive('INBOX');
+    pop.querySelectorAll('.glt-pop-opt').forEach(opt =>
+      opt.addEventListener('click', () => commitHold(opt.dataset.when))
+    );
+    pop.querySelector('.glt-pop-cgo').addEventListener('click', () => {
+      const v = pop.querySelector('.glt-pop-dt').value;
+      commitHold(v ? new Date(v).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : 'In 3 hours');
+    });
+
+    function commitHold(whenLabel) {
+      closePop();
+      const m = INBOX.find(x => x.id === openId);
+      if (!m) return;
+      removedFromInbox.add(m.id);
+      HELD.push({ id: m.id, subject: m.subject, when: whenLabel });
+      updateHeldUI();
+      toast(`Held — returns ${whenLabel}`);
+      backToList();
+      renderList();
+    }
+
+    // ── Held pill + manager ──────────────────────────────────────
+    function updateHeldUI() {
+      const pill = document.getElementById('glt-held-pill');
+      pill.style.display = HELD.length ? 'inline-flex' : 'none';
+      pill.textContent = HELD.length ? `⏳ ${HELD.length}` : '';
+      document.getElementById('sidebar-held-count').textContent = HELD.length;
+    }
+
+    function openManager() {
+      const list = document.getElementById('glt-panel-list');
+      list.innerHTML = HELD.length ? HELD.map(h => `
+        <div class="glt-held-row" data-id="${h.id}">
+          <div class="glt-held-meta">
+            <div class="glt-held-subj">${h.subject}</div>
+            <div class="glt-held-when">Returns ${h.when}</div>
+          </div>
+          <button class="glt-held-now">Return now</button>
+          <button class="glt-held-del">&#x2715;</button>
+        </div>`).join('')
+        : '<p class="glt-sp-msg">No held emails. Open a conversation and click “Hold”.</p>';
+      list.querySelectorAll('.glt-held-row').forEach(row => {
+        row.querySelector('.glt-held-now').addEventListener('click', () => returnNow(row.dataset.id));
+        row.querySelector('.glt-held-del').addEventListener('click', () => cancelHold(row.dataset.id));
+      });
+      document.getElementById('glt-overlay').classList.add('show');
+      document.getElementById('glt-panel').classList.add('show');
+    }
+    function closeManager() {
+      document.getElementById('glt-overlay').classList.remove('show');
+      document.getElementById('glt-panel').classList.remove('show');
+    }
+    function returnNow(id) {
+      removedFromInbox.delete(id);
+      const i = HELD.findIndex(h => h.id === id);
+      if (i > -1) HELD.splice(i, 1);
+      updateHeldUI(); renderList(); openManager();
+      toast('Returned to inbox');
+      if (HELD.length === 0) closeManager();
+    }
+    function cancelHold(id) {
+      const i = HELD.findIndex(h => h.id === id);
+      if (i > -1) HELD.splice(i, 1);
+      updateHeldUI(); openManager();
+      toast('Hold cancelled');
+      if (HELD.length === 0) closeManager();
+    }
+
+    document.getElementById('glt-held-pill').addEventListener('click', openManager);
+    document.getElementById('glt-panel-x').addEventListener('click', closeManager);
+    document.getElementById('glt-overlay').addEventListener('click', closeManager);
+
+    // ── Toast ────────────────────────────────────────────────────
+    let toastT;
+    function toast(msg) {
+      const el = document.getElementById('glt-toast');
+      el.textContent = msg; el.classList.add('show');
+      clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 3500);
+    }
+
+    // ── Tab switching (label nav, unchanged behaviour) ───────────
+    document.querySelectorAll('.glt-tab[data-tab], .nav-item[data-tab]').forEach(el => {
+      el.addEventListener('click', () => {
+        const tab = el.dataset.tab;
+        if (tab === 'INBOX') backToList();
+        document.querySelectorAll('.glt-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+        document.querySelectorAll('.nav-item[data-tab]').forEach(n => n.classList.toggle('active', n.dataset.tab === tab));
+        document.getElementById('search-box').value = tab === 'INBOX' ? '' : `label:${tab.toLowerCase().replace(/ /g,'-')}`;
+      });
+    });
+
+    // ── Boot ─────────────────────────────────────────────────────
+    renderList();
+    updateHeldUI();
+
+    // Hooks the screenshot script drives to pose specific states.
+    window.__demo = { openConversation, openPop, openManager, commitHold, backToList };
   </script>
 </body>
 </html>

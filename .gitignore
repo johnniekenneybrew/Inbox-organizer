@@ -8,3 +8,6 @@ __MACOSX/
 
 # Editor
 .vscode/
+
+# Local tooling
+node_modules/
