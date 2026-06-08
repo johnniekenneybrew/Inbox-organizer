@@ -6,9 +6,14 @@ const BAR_ID     = 'glt-bar';
 const PANEL_ID   = 'glt-panel';
 const OVERLAY_ID = 'glt-overlay';
 
+const HOLD_OVERLAY_ID = 'glt-hold-overlay';
+const HOLD_PANEL_ID   = 'glt-hold-panel';
+const POPOVER_ID      = 'glt-hold-pop';
+
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let cachedPinned = [];   // [{ id, name }, …]  — kept in sync with storage
+let cachedHolds  = [];   // [{ threadId, subject, snippet, returnAt }, …]
 let settingsOpen = false;
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -131,7 +136,25 @@ function buildBar(pinned) {
     bar.appendChild(btn);
   });
 
-  // Settings gear button (right-aligned via CSS margin-left: auto)
+  // ── Right-aligned controls (pushed over by margin-left:auto on the first) ──
+
+  // Hold button — snoozes the open conversation out of the inbox.
+  const hold = document.createElement('button');
+  hold.className = 'glt-hold';
+  hold.title = 'Hold this email — return it to the inbox after a timer';
+  hold.setAttribute('aria-label', 'Hold this email');
+  hold.innerHTML = `${clockIcon()}<span>Hold</span>`;
+  hold.addEventListener('click', onHoldClick);
+  bar.appendChild(hold);
+
+  // Held pill — shows count of active holds, opens the manager.
+  const pill = document.createElement('button');
+  pill.className = 'glt-held-pill';
+  pill.setAttribute('aria-label', 'Manage held emails');
+  pill.addEventListener('click', openHoldsManager);
+  bar.appendChild(pill);
+
+  // Settings gear button
   const gear = document.createElement('button');
   gear.className = 'glt-gear';
   gear.title = 'Configure label tabs';
@@ -178,6 +201,14 @@ function gearIcon() {
   </svg>`;
 }
 
+function clockIcon() {
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9"></circle>
+    <path d="M12 7v5l3 2"></path>
+  </svg>`;
+}
+
 // ─── Inject / remove bar ──────────────────────────────────────────────────────
 
 /**
@@ -209,6 +240,8 @@ function injectBar(pinned) {
   if (!main) return false;
 
   main.prepend(buildBar(pinned));
+  updateHoldUI();
+  updateHeldPill();
   return true;
 }
 
@@ -219,12 +252,272 @@ function injectBar(pinned) {
 function tryInjectWithRetry(attempts = 0) {
   if (isBarVisible()) {
     updateActiveTab();
+    updateHoldUI();
     return;
   }
   if (injectBar(cachedPinned)) return;
   if (attempts < 20) {
     setTimeout(() => tryInjectWithRetry(attempts + 1), 100);
   }
+}
+
+// ─── Hold: open-conversation detection ─────────────────────────────────────────
+
+/**
+ * If a single conversation is open in the visible main, returns the identifiers
+ * needed to act on it via the Gmail API (and a subject for display). Returns
+ * null in list views.
+ *
+ * Gmail tags open messages with `data-legacy-message-id` / `data-legacy-thread-id`
+ * (already in the hex form the API expects). The list view, by contrast, renders
+ * `tr.zA` rows — so its presence means we are *not* in a single conversation.
+ */
+function getOpenConversation() {
+  const main = findVisibleMain();
+  if (!main) return null;
+  if (main.querySelector('tr.zA')) return null; // thread-list view, not a conversation
+
+  const subject = main.querySelector('h2.hP')?.textContent?.trim() || '';
+
+  const threadEl = main.querySelector('[data-legacy-thread-id]');
+  if (threadEl) {
+    return { threadId: threadEl.getAttribute('data-legacy-thread-id'), subject };
+  }
+
+  const msgEls = main.querySelectorAll('[data-legacy-message-id]');
+  if (msgEls.length) {
+    const last = msgEls[msgEls.length - 1];
+    return { messageId: last.getAttribute('data-legacy-message-id'), subject };
+  }
+
+  return null;
+}
+
+// Enable the Hold button only when a conversation is open.
+function updateHoldUI() {
+  const btn = document.querySelector(`#${BAR_ID} .glt-hold`);
+  if (!btn) return;
+  const open = !!getOpenConversation();
+  btn.classList.toggle('glt-hold--disabled', !open);
+  btn.disabled = !open;
+}
+
+// ─── Hold: messaging helpers ───────────────────────────────────────────────────
+
+function sendBg(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (resp) => {
+      if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+      if (resp?.error) return reject(new Error(resp.error));
+      resolve(resp);
+    });
+  });
+}
+
+async function refreshHolds() {
+  try {
+    const { holds } = await sendBg({ type: 'LIST_HOLDS' });
+    cachedHolds = holds || [];
+  } catch {
+    cachedHolds = [];
+  }
+  updateHeldPill();
+}
+
+function updateHeldPill() {
+  const pill = document.querySelector(`#${BAR_ID} .glt-held-pill`);
+  if (!pill) return;
+  const n = cachedHolds.length;
+  pill.textContent = n ? `⏳ ${n}` : '';
+  pill.style.display = n ? '' : 'none';
+  pill.title = n ? `${n} held email${n === 1 ? '' : 's'} — click to manage` : '';
+}
+
+// ─── Hold: duration picker ─────────────────────────────────────────────────────
+
+const HOLD_PRESETS = [
+  { label: 'In 1 hour',   ms: () => 60 * 60 * 1000 },
+  { label: 'In 3 hours',  ms: () => 3 * 60 * 60 * 1000 },
+  { label: 'Tomorrow 9 AM', ms: () => nextHour(9) },
+  { label: 'In 2 days',   ms: () => 2 * 24 * 60 * 60 * 1000 },
+  { label: 'In 1 week',   ms: () => 7 * 24 * 60 * 60 * 1000 },
+];
+
+// Milliseconds from now until the next occurrence of `hour` (local time).
+function nextHour(hour) {
+  const t = new Date();
+  t.setHours(hour, 0, 0, 0);
+  if (t.getTime() <= Date.now()) t.setDate(t.getDate() + 1);
+  return t.getTime() - Date.now();
+}
+
+function onHoldClick() {
+  const convo = getOpenConversation();
+  if (!convo) return;
+  document.getElementById(POPOVER_ID)?.remove();
+
+  const anchor = document.querySelector(`#${BAR_ID} .glt-hold`);
+  const pop = document.createElement('div');
+  pop.id = POPOVER_ID;
+  pop.className = 'glt-pop';
+
+  pop.innerHTML = `
+    <p class="glt-pop-title">Return to inbox…</p>
+    ${HOLD_PRESETS.map(
+      (p, i) => `<button class="glt-pop-opt" data-i="${i}">${escHtml(p.label)}</button>`
+    ).join('')}
+    <div class="glt-pop-custom">
+      <label class="glt-pop-clabel">Custom</label>
+      <input type="datetime-local" class="glt-pop-dt">
+      <button class="glt-pop-cgo">Set</button>
+    </div>
+  `;
+
+  document.body.appendChild(pop);
+  positionPopover(pop, anchor);
+
+  pop.querySelectorAll('.glt-pop-opt').forEach((opt) => {
+    opt.addEventListener('click', () => {
+      const preset = HOLD_PRESETS[Number(opt.dataset.i)];
+      commitHold(convo, Date.now() + preset.ms());
+    });
+  });
+
+  pop.querySelector('.glt-pop-cgo').addEventListener('click', () => {
+    const val = pop.querySelector('.glt-pop-dt').value;
+    if (!val) return;
+    const when = new Date(val).getTime();
+    if (!when || when <= Date.now()) {
+      flashError(pop, 'Pick a time in the future.');
+      return;
+    }
+    commitHold(convo, when);
+  });
+
+  // Dismiss on outside click / Escape.
+  setTimeout(() => {
+    const onAway = (e) => {
+      if (!pop.contains(e.target) && e.target !== anchor) closePopover();
+    };
+    const onEsc = (e) => { if (e.key === 'Escape') closePopover(); };
+    pop._cleanup = () => {
+      document.removeEventListener('mousedown', onAway);
+      document.removeEventListener('keydown', onEsc);
+    };
+    document.addEventListener('mousedown', onAway);
+    document.addEventListener('keydown', onEsc);
+  }, 0);
+}
+
+function positionPopover(pop, anchor) {
+  const r = anchor.getBoundingClientRect();
+  pop.style.top = `${r.bottom + 6}px`;
+  // Align right edge of popover with the anchor, clamped to viewport.
+  const left = Math.max(8, Math.min(r.right - pop.offsetWidth, window.innerWidth - pop.offsetWidth - 8));
+  pop.style.left = `${left}px`;
+}
+
+function closePopover() {
+  const pop = document.getElementById(POPOVER_ID);
+  pop?._cleanup?.();
+  pop?.remove();
+}
+
+async function commitHold(convo, returnAt) {
+  closePopover();
+  try {
+    const res = await sendBg({
+      type: 'HOLD_THREAD',
+      threadId: convo.threadId,
+      messageId: convo.messageId,
+      returnAt,
+    });
+    await refreshHolds();
+    toast(`Held — returns ${formatWhen(res.returnAt)}`);
+    // Gmail will drop the archived thread from the current view on its own; nudge
+    // back to the inbox/list so the user sees it leave.
+    if (getOpenConversation()) history.back();
+  } catch (err) {
+    toast(`Couldn't hold this email: ${err.message}`, true);
+  }
+}
+
+// ─── Hold: manager modal ───────────────────────────────────────────────────────
+
+async function openHoldsManager() {
+  await refreshHolds();
+  document.getElementById(HOLD_PANEL_ID)?.remove();
+  document.getElementById(HOLD_OVERLAY_ID)?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = HOLD_OVERLAY_ID;
+  overlay.className = 'glt-overlay-base';
+  overlay.addEventListener('click', closeHoldsManager);
+
+  const panel = document.createElement('div');
+  panel.id = HOLD_PANEL_ID;
+  panel.className = 'glt-panel-base';
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-modal', 'true');
+  panel.addEventListener('click', (e) => e.stopPropagation());
+
+  const rows = cachedHolds
+    .slice()
+    .sort((a, b) => a.returnAt - b.returnAt)
+    .map(
+      (h) => `
+      <div class="glt-held-row" data-id="${escHtml(h.threadId)}">
+        <div class="glt-held-meta">
+          <div class="glt-held-subj">${escHtml(h.subject || '(no subject)')}</div>
+          <div class="glt-held-when">Returns ${escHtml(formatWhen(h.returnAt))}</div>
+        </div>
+        <button class="glt-held-now" title="Return to inbox now">Return now</button>
+        <button class="glt-held-del" title="Cancel hold (keep archived)">&#x2715;</button>
+      </div>`
+    )
+    .join('');
+
+  panel.innerHTML = `
+    <div class="glt-sp-head">
+      <h2 class="glt-sp-title">Held emails</h2>
+      <button class="glt-sp-x" aria-label="Close">&#x2715;</button>
+    </div>
+    <div class="glt-sp-list">
+      ${rows || '<p class="glt-sp-msg">No held emails. Open a conversation and click “Hold”.</p>'}
+    </div>
+  `;
+
+  document.body.append(overlay, panel);
+  panel.querySelector('.glt-sp-x').addEventListener('click', closeHoldsManager);
+
+  panel.querySelectorAll('.glt-held-row').forEach((row) => {
+    const id = row.dataset.id;
+    row.querySelector('.glt-held-now').addEventListener('click', () =>
+      handleCancel(id, true, row)
+    );
+    row.querySelector('.glt-held-del').addEventListener('click', () =>
+      handleCancel(id, false, row)
+    );
+  });
+}
+
+async function handleCancel(threadId, returnToInbox, rowEl) {
+  rowEl.style.opacity = '0.5';
+  try {
+    await sendBg({ type: 'CANCEL_HOLD', threadId, returnToInbox });
+    await refreshHolds();
+    rowEl.remove();
+    if (cachedHolds.length === 0) closeHoldsManager();
+    toast(returnToInbox ? 'Returned to inbox' : 'Hold cancelled');
+  } catch (err) {
+    rowEl.style.opacity = '1';
+    toast(`Failed: ${err.message}`, true);
+  }
+}
+
+function closeHoldsManager() {
+  document.getElementById(HOLD_OVERLAY_ID)?.remove();
+  document.getElementById(HOLD_PANEL_ID)?.remove();
 }
 
 // ─── Settings Panel ───────────────────────────────────────────────────────────
@@ -394,11 +687,52 @@ function debounce(fn, ms) {
   };
 }
 
+// Human-friendly return time: "today 3:45 PM", "tomorrow 9:00 AM", or a date.
+function formatWhen(ts) {
+  const d = new Date(ts);
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const today = new Date();
+  const sameDay = (a, b) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+
+  if (sameDay(d, today)) return `today ${time}`;
+  if (sameDay(d, tomorrow)) return `tomorrow ${time}`;
+  return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`;
+}
+
+function flashError(container, msg) {
+  let el = container.querySelector('.glt-pop-err');
+  if (!el) {
+    el = document.createElement('p');
+    el.className = 'glt-pop-err';
+    container.appendChild(el);
+  }
+  el.textContent = msg;
+}
+
+let toastTimer;
+function toast(msg, isError = false) {
+  document.getElementById('glt-toast')?.remove();
+  const el = document.createElement('div');
+  el.id = 'glt-toast';
+  el.className = isError ? 'glt-toast glt-toast--err' : 'glt-toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.remove(), 4000);
+}
+
 // ─── MutationObserver — keeps bar alive across Gmail's DOM churning ───────────
 
 const debouncedEnsure = debounce(() => {
   if (!isBarVisible()) {
     tryInjectWithRetry();
+  } else {
+    updateHoldUI();
   }
 }, 300);
 
@@ -408,6 +742,7 @@ const domObserver = new MutationObserver(debouncedEnsure);
 
 window.addEventListener('hashchange', () => {
   updateActiveTab();      // update indicator immediately if bar is already there
+  updateHoldUI();         // enable/disable Hold for the new view
   tryInjectWithRetry();   // re-inject if bar already missing
   // Gmail usually removes the bar AFTER hashchange while it re-renders the
   // main panel. Re-check at several intervals so we catch the removal whenever
@@ -446,6 +781,7 @@ async function reconcileLabelNames(pinned) {
 
 async function init() {
   cachedPinned = await reconcileLabelNames(await loadPinned());
+  refreshHolds();
 
   if (injectBar(cachedPinned)) {
     // Gmail was already ready — start observing immediately.
@@ -463,11 +799,15 @@ async function init() {
     waitObs.observe(document.body, { childList: true, subtree: true });
   }
 
-  // Sync tab bar if another tab/window changes the pinned list.
-  chrome.storage.onChanged.addListener((changes) => {
-    if (changes.pinnedLabels) {
+  // Sync UI if another tab/window — or the background return job — changes state.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync' && changes.pinnedLabels) {
       cachedPinned = changes.pinnedLabels.newValue || [];
       injectBar(cachedPinned);
+    }
+    if (area === 'local' && changes.heldThreads) {
+      cachedHolds = changes.heldThreads.newValue || [];
+      updateHeldPill();
     }
   });
 }

@@ -72,7 +72,6 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-left: auto;
   padding: 0 10px;
   color: #5f6368;
   border-radius: 50%;
@@ -89,6 +88,262 @@
   outline: 2px solid #1a73e8;
   outline-offset: 2px;
 }
+
+/* ── Hold button ─────────────────────────────────────────────────────────── */
+
+.glt-hold {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* First of the right-aligned controls — pushes itself and the rest right. */
+  margin-left: auto;
+  margin-right: 4px;
+  padding: 0 14px;
+  align-self: center;
+  height: 32px;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a73e8;
+  border: 1px solid #dadce0;
+  border-radius: 16px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.glt-hold:hover {
+  background: #e8f0fe;
+  border-color: #1a73e8;
+}
+
+.glt-hold:focus-visible {
+  outline: 2px solid #1a73e8;
+  outline-offset: 2px;
+}
+
+.glt-hold--disabled {
+  color: #9aa0a6;
+  cursor: default;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ── Held count pill ─────────────────────────────────────────────────────── */
+
+.glt-held-pill {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  height: 32px;
+  margin-right: 4px;
+  padding: 0 12px;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #5f6368;
+  background: #f1f3f4;
+  border-radius: 16px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 140ms ease;
+}
+
+.glt-held-pill:hover { background: #e8eaed; }
+.glt-held-pill:focus-visible { outline: 2px solid #1a73e8; outline-offset: 2px; }
+
+/* ── Hold duration popover ───────────────────────────────────────────────── */
+
+.glt-pop {
+  position: fixed;
+  z-index: 10000;
+  min-width: 200px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.14),
+    0 1px 14px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  animation: glt-fade-in 120ms ease;
+}
+
+.glt-pop-title {
+  margin: 4px 8px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #5f6368;
+}
+
+.glt-pop-opt {
+  all: unset;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  padding: 9px 12px;
+  font-size: 14px;
+  color: #202124;
+  border-radius: 6px;
+}
+
+.glt-pop-opt:hover { background: #f1f3f4; color: #1a73e8; }
+.glt-pop-opt:focus-visible { outline: 2px solid #1a73e8; outline-offset: -2px; }
+
+.glt-pop-custom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 8px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.glt-pop-clabel { font-size: 12px; color: #5f6368; }
+
+.glt-pop-dt {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  padding: 4px;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+}
+
+.glt-pop-cgo {
+  all: unset;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a73e8;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.glt-pop-cgo:hover { background: #e8f0fe; }
+
+.glt-pop-err {
+  margin: 4px 8px 2px;
+  font-size: 12px;
+  color: #c5221f;
+}
+
+/* ── Held-emails manager modal ───────────────────────────────────────────── */
+
+.glt-overlay-base {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.38);
+  z-index: 9998;
+  animation: glt-fade-in 160ms ease;
+}
+
+.glt-panel-base {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 440px;
+  max-width: calc(100vw - 32px);
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow:
+    0 6px 10px rgba(0, 0, 0, 0.14),
+    0 1px 18px rgba(0, 0, 0, 0.12),
+    0 3px 5px rgba(0, 0, 0, 0.2);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  animation: glt-slide-in 180ms ease;
+}
+
+.glt-held-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  transition: background 100ms ease;
+}
+
+.glt-held-row:hover { background: #f8f9fa; }
+
+.glt-held-meta { flex: 1; min-width: 0; }
+
+.glt-held-subj {
+  font-size: 14px;
+  color: #202124;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.glt-held-when {
+  font-size: 12px;
+  color: #5f6368;
+  margin-top: 2px;
+}
+
+.glt-held-now {
+  all: unset;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a73e8;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.glt-held-now:hover { background: #e8f0fe; }
+
+.glt-held-del {
+  all: unset;
+  cursor: pointer;
+  color: #5f6368;
+  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.glt-held-del:hover { background: #f1f3f4; color: #c5221f; }
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+
+.glt-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10001;
+  background: #202124;
+  color: #fff;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 13px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+  animation: glt-fade-in 160ms ease;
+  max-width: 80vw;
+}
+
+.glt-toast--err { background: #c5221f; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Settings Panel

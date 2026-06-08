@@ -1,22 +1,238 @@
-// Service worker — bridges chrome.identity (only available in background) to content script.
+'use strict';
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === 'GET_TOKEN') {
-    chrome.identity.getAuthToken({ interactive: true }, (token) => {
-      if (chrome.runtime.lastError) {
-        sendResponse({ error: chrome.runtime.lastError.message });
-      } else {
-        sendResponse({ token });
+// Service worker — two jobs:
+//   1. Bridge chrome.identity (only available here) to the content script.
+//   2. Run the "Hold" engine: archive threads on request and re-deliver them
+//      to the inbox when their timer expires, via a periodic chrome.alarm.
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const API            = 'https://www.googleapis.com/gmail/v1/users/me';
+const HELD_LABEL_NAME = '⏳ Held';          // "⏳ Held"
+const HOLDS_KEY      = 'heldThreads';           // chrome.storage.local
+const HELD_LABEL_KEY = 'heldLabelId';           // cached label id
+const ALARM_NAME     = 'glt-check-holds';
+const CHECK_PERIOD_MIN = 1;                      // MV3 minimum granularity
+
+// ─── Token helpers ────────────────────────────────────────────────────────────
+
+function getToken(interactive) {
+  return new Promise((resolve, reject) => {
+    chrome.identity.getAuthToken({ interactive }, (token) => {
+      if (chrome.runtime.lastError || !token) {
+        return reject(new Error(chrome.runtime.lastError?.message || 'No auth token'));
       }
+      resolve(token);
     });
-    return true; // keep message channel open for async response
+  });
+}
+
+function removeToken(token) {
+  return new Promise((resolve) =>
+    chrome.identity.removeCachedAuthToken({ token }, () => resolve())
+  );
+}
+
+// ─── Gmail API ──────────────────────────────────────────────────────────────
+
+async function api(token, path, options = {}) {
+  const r = await fetch(API + path, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  if (r.status === 401) {
+    await removeToken(token);
+    throw new Error('Authentication expired. Open the settings gear in Gmail to re-authorize.');
+  }
+  if (!r.ok) throw new Error(`Gmail API error ${r.status}`);
+  return r.status === 204 ? null : r.json();
+}
+
+function modifyThread(token, threadId, addLabelIds, removeLabelIds) {
+  return api(token, `/threads/${threadId}/modify`, {
+    method: 'POST',
+    body: JSON.stringify({ addLabelIds, removeLabelIds }),
+  });
+}
+
+// Find (or create) the "⏳ Held" label and cache its id.
+async function ensureHeldLabel(token) {
+  const cached = (await chrome.storage.local.get(HELD_LABEL_KEY))[HELD_LABEL_KEY];
+  if (cached) return cached;
+
+  const { labels = [] } = await api(token, '/labels');
+  let label = labels.find((l) => l.name === HELD_LABEL_NAME);
+  if (!label) {
+    label = await api(token, '/labels', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: HELD_LABEL_NAME,
+        labelListVisibility: 'labelShow',
+        messageListVisibility: 'show',
+      }),
+    });
+  }
+  await chrome.storage.local.set({ [HELD_LABEL_KEY]: label.id });
+  return label.id;
+}
+
+// Resolve a usable threadId + display metadata from whatever the content script
+// could scrape (a legacy thread id, or just a legacy message id).
+async function resolveThreadMeta(token, { threadId, messageId }) {
+  const headerOf = (msg, name) =>
+    (msg?.payload?.headers || []).find((h) => h.name.toLowerCase() === name)?.value;
+
+  if (!threadId && messageId) {
+    const msg = await api(
+      token,
+      `/messages/${messageId}?format=metadata&metadataHeaders=Subject`
+    );
+    return {
+      threadId: msg.threadId,
+      subject: headerOf(msg, 'subject') || '(no subject)',
+      snippet: msg.snippet || '',
+    };
   }
 
-  if (message.type === 'REMOVE_TOKEN') {
-    // Call this after a 401 so Chrome fetches a fresh token next time.
-    chrome.identity.removeCachedAuthToken({ token: message.token }, () => {
-      sendResponse({ ok: true });
-    });
-    return true;
+  const thread = await api(
+    token,
+    `/threads/${threadId}?format=metadata&metadataHeaders=Subject`
+  );
+  const msgs = thread.messages || [];
+  return {
+    threadId,
+    subject: headerOf(msgs[0], 'subject') || '(no subject)',
+    snippet: msgs[msgs.length - 1]?.snippet || '',
+  };
+}
+
+// ─── Hold storage ─────────────────────────────────────────────────────────────
+
+async function loadHolds() {
+  return (await chrome.storage.local.get(HOLDS_KEY))[HOLDS_KEY] || [];
+}
+
+function saveHolds(holds) {
+  return chrome.storage.local.set({ [HOLDS_KEY]: holds });
+}
+
+async function ensureAlarm() {
+  const existing = await chrome.alarms.get(ALARM_NAME);
+  if (!existing) {
+    chrome.alarms.create(ALARM_NAME, { periodInMinutes: CHECK_PERIOD_MIN });
+  }
+}
+
+// ─── Core actions ─────────────────────────────────────────────────────────────
+
+async function holdThread({ threadId, messageId, returnAt }) {
+  const token = await getToken(true);
+  const meta = await resolveThreadMeta(token, { threadId, messageId });
+  const heldLabelId = await ensureHeldLabel(token).catch(() => null);
+
+  const add = heldLabelId ? [heldLabelId] : [];
+  await modifyThread(token, meta.threadId, add, ['INBOX']);
+
+  const holds = await loadHolds();
+  // Replace any existing hold for the same thread.
+  const next = holds.filter((h) => h.threadId !== meta.threadId);
+  next.push({
+    threadId: meta.threadId,
+    subject: meta.subject,
+    snippet: meta.snippet,
+    returnAt,
+    heldAt: Date.now(),
+  });
+  await saveHolds(next);
+  await ensureAlarm();
+  return { ok: true, returnAt, subject: meta.subject };
+}
+
+async function cancelHold({ threadId, returnToInbox }) {
+  const holds = await loadHolds();
+  await saveHolds(holds.filter((h) => h.threadId !== threadId));
+
+  if (returnToInbox) {
+    const token = await getToken(true);
+    const heldLabelId = (await chrome.storage.local.get(HELD_LABEL_KEY))[HELD_LABEL_KEY];
+    await modifyThread(token, threadId, ['INBOX'], heldLabelId ? [heldLabelId] : []);
+  }
+  return { ok: true };
+}
+
+// Re-deliver every hold whose timer has expired. Runs on the alarm tick.
+async function returnDueThreads() {
+  const holds = await loadHolds();
+  const now = Date.now();
+  const due = holds.filter((h) => h.returnAt <= now);
+  if (due.length === 0) return;
+
+  let token;
+  try {
+    token = await getToken(false); // non-interactive — never pops UI in background
+  } catch {
+    return; // user must re-auth; leave holds in place and retry next tick
+  }
+
+  const heldLabelId = (await chrome.storage.local.get(HELD_LABEL_KEY))[HELD_LABEL_KEY];
+  const remove = heldLabelId ? [heldLabelId] : [];
+  const delivered = new Set();
+
+  for (const hold of due) {
+    try {
+      // Bring it back to the inbox and mark unread so it stands out.
+      await modifyThread(token, hold.threadId, ['INBOX', 'UNREAD'], remove);
+      delivered.add(hold.threadId);
+    } catch {
+      // Leave undelivered holds for the next tick.
+    }
+  }
+
+  if (delivered.size) {
+    const remaining = (await loadHolds()).filter((h) => !delivered.has(h.threadId));
+    await saveHolds(remaining);
+  }
+}
+
+// ─── Wiring ───────────────────────────────────────────────────────────────────
+
+chrome.runtime.onInstalled.addListener(ensureAlarm);
+chrome.runtime.onStartup.addListener(ensureAlarm);
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === ALARM_NAME) returnDueThreads();
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  switch (message.type) {
+    case 'GET_TOKEN':
+      getToken(true)
+        .then((token) => sendResponse({ token }))
+        .catch((err) => sendResponse({ error: err.message }));
+      return true;
+
+    case 'REMOVE_TOKEN':
+      removeToken(message.token).then(() => sendResponse({ ok: true }));
+      return true;
+
+    case 'HOLD_THREAD':
+      holdThread(message)
+        .then(sendResponse)
+        .catch((err) => sendResponse({ error: err.message }));
+      return true;
+
+    case 'LIST_HOLDS':
+      loadHolds().then((holds) => sendResponse({ holds }));
+      return true;
+
+    case 'CANCEL_HOLD':
+      cancelHold(message)
+        .then(sendResponse)
+        .catch((err) => sendResponse({ error: err.message }));
+      return true;
   }
 });

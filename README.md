@@ -1,14 +1,25 @@
 # Gmail Label Tabs
 
-A Chrome extension (Manifest V3) that adds a sticky tab bar inside Gmail for instant label navigation.
+A Chrome extension (Manifest V3) that adds a sticky tab bar inside Gmail for instant label navigation, plus a **Hold** feature that snoozes emails out of the inbox and brings them back on a timer.
 
 ## What it does
 
+### Label tabs
 - Renders a tab bar at the top of the Gmail inbox — **Inbox** is always pinned first
 - Clicking a tab runs a `label:[label-name]` search in Gmail
 - Active tab shows a blue underline indicator
 - Settings panel (gear icon) lets you pick which labels to show and drag to reorder
 - Saved to `chrome.storage.sync` — persists across sessions and syncs across devices
+
+### Hold (boomerang)
+- Open any conversation and click **Hold** in the tab bar
+- Pick when it should come back: presets (1 hour, 3 hours, tomorrow 9 AM, 2 days, 1 week) or a custom date/time
+- The email is archived out of the inbox and tagged with a **⏳ Held** label
+- When the timer expires, a background alarm returns it to the inbox and marks it **unread** so it stands out
+- The **⏳ _n_** pill in the tab bar opens a manager to see, return-now, or cancel pending holds
+- Holds are tracked in `chrome.storage.local`; the return job runs in the service worker via `chrome.alarms` (checked once a minute)
+
+> The Hold timer is unconditional — the email returns when the timer fires regardless of whether anyone replied.
 
 ---
 
@@ -71,13 +82,18 @@ Because the app stays in **Testing** mode you must explicitly allow each Gmail a
 | File | Purpose |
 |---|---|
 | `manifest.json` | Extension manifest — permissions, OAuth scopes, content script declaration |
-| `background.js` | Service worker — brokers `chrome.identity.getAuthToken()` calls from the content script |
-| `content.js` | Injected into Gmail — renders tab bar, settings panel, MutationObserver, hash-change handler |
-| `styles.css` | Injected CSS — tab bar and settings panel styles, all prefixed `glt-` |
+| `background.js` | Service worker — brokers `chrome.identity.getAuthToken()` calls, runs the Hold/return engine via `chrome.alarms` |
+| `content.js` | Injected into Gmail — renders tab bar, Hold button + manager, settings panel, MutationObserver, hash-change handler |
+| `styles.css` | Injected CSS — tab bar, Hold UI, and settings panel styles, all prefixed `glt-` |
 | `popup.html` | Extension toolbar popup — quick link to open Gmail |
 
 ---
 
-## OAuth scope
+## OAuth scopes
 
-Only `https://www.googleapis.com/auth/gmail.labels` is requested — read-only access to label metadata. No email content is ever read.
+| Scope | Why |
+|---|---|
+| `https://www.googleapis.com/auth/gmail.labels` | Read your label list for the tab bar; create the **⏳ Held** label |
+| `https://www.googleapis.com/auth/gmail.modify` | Archive a held thread out of the inbox and add it back when its timer fires |
+
+`gmail.modify` does **not** grant permanent deletion or send access. The extension only changes which labels (including `INBOX`/`UNREAD`) are applied to threads you explicitly hold.
