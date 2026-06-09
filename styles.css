@@ -163,19 +163,11 @@
   color: #1a73e8;
 }
 
-/* Count badge inside the Hold tab */
+/* Count inside the Hold tab — kept subtle/grey */
 .glt-hold-tab-count {
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  background: #1a73e8;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 12px;
+  font-weight: 400;
+  color: #80868b;
 }
 
 /* ── Inline "Hold" button on hovered inbox rows ──────────────────────────── */
