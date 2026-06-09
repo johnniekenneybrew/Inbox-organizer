@@ -159,7 +159,8 @@ async function cancelHold({ threadId, returnToInbox }) {
   if (returnToInbox) {
     const token = await getToken(true);
     const heldLabelId = (await chrome.storage.local.get(HELD_LABEL_KEY))[HELD_LABEL_KEY];
-    await modifyThread(token, threadId, ['INBOX'], heldLabelId ? [heldLabelId] : []);
+    // Mark unread on the way back so it stands out — same as the timer return.
+    await modifyThread(token, threadId, ['INBOX', 'UNREAD'], heldLabelId ? [heldLabelId] : []);
   }
   return { ok: true };
 }
