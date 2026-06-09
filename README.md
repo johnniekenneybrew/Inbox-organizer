@@ -14,15 +14,14 @@ A Chrome extension (Manifest V3) that adds a sticky tab bar inside Gmail for ins
 ### Hold (boomerang)
 - **From the inbox list:** hover any row and click the inline **Hold** button — no need to open the email
 - **From an open conversation:** click **Hold** in the tab bar
-- Pick when it should come back: **3 days**, **1 week**, or a **Custom** duration (a number of hours/days/weeks)
+- Pick when it should come back: **3 days**, **1 week**, a **Custom** duration (a number of hours/days/weeks), or a **specific date & time**
 - Custom durations are remembered — each one you enter is cached locally (`chrome.storage.local`) and appears as its own quick-pick button next time (removable with the ✕)
 - The email is archived out of the inbox and tagged with the **Hold** label
-- The **Hold** tab on the right of the bar opens the Hold label so you can see and open the held emails in Gmail; it shows a count badge
+- The **Hold** tab on the right of the bar opens the Hold label so you can see and open the held emails in Gmail; it shows a count badge. Hovering a held row shows **when it will return** plus a **Return now** button
 - **Return now** is available both on a held email's row (hover) and inside the opened email; the automatic timer return and Return now both bring the email back **unread**
+- **A reply ends the hold early:** if a new message arrives in a held thread before the timer, the background check removes the **Hold** label automatically (the reply has already pulled the thread back into your inbox)
 - The Hold tab/label name is **customizable** in the settings (gear) panel — defaults to "Hold"
-- Holds are tracked in `chrome.storage.local`; the return job runs in the service worker via `chrome.alarms` (checked once a minute)
-
-> The Hold timer is unconditional — the email returns when the timer fires regardless of whether anyone replied.
+- Holds are tracked in `chrome.storage.local`; the return + reply-check job runs in the service worker via `chrome.alarms` (once a minute)
 
 ---
 

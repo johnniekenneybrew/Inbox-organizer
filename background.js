@@ -101,22 +101,15 @@ async function setHoldLabelName(name) {
   return { ok: true };
 }
 
-// Resolve a usable threadId + display metadata from whatever the content script
-// could scrape (a legacy thread id, or just a legacy message id).
+// Resolve a usable threadId + display metadata (and the current message count,
+// used later to detect a reply) from whatever the content script could scrape.
 async function resolveThreadMeta(token, { threadId, messageId }) {
   const headerOf = (msg, name) =>
     (msg?.payload?.headers || []).find((h) => h.name.toLowerCase() === name)?.value;
 
   if (!threadId && messageId) {
-    const msg = await api(
-      token,
-      `/messages/${messageId}?format=metadata&metadataHeaders=Subject`
-    );
-    return {
-      threadId: msg.threadId,
-      subject: headerOf(msg, 'subject') || '(no subject)',
-      snippet: msg.snippet || '',
-    };
+    const msg = await api(token, `/messages/${messageId}?format=minimal`);
+    threadId = msg.threadId;
   }
 
   const thread = await api(
@@ -128,7 +121,14 @@ async function resolveThreadMeta(token, { threadId, messageId }) {
     threadId,
     subject: headerOf(msgs[0], 'subject') || '(no subject)',
     snippet: msgs[msgs.length - 1]?.snippet || '',
+    msgCount: msgs.length,
   };
+}
+
+// Current number of messages in a thread (used to detect a new reply).
+async function threadMessageCount(token, threadId) {
+  const thread = await api(token, `/threads/${threadId}?format=minimal`);
+  return (thread.messages || []).length;
 }
 
 // ─── Hold storage ─────────────────────────────────────────────────────────────
@@ -167,6 +167,7 @@ async function holdThread({ threadId, messageId, returnAt }) {
     snippet: meta.snippet,
     returnAt,
     heldAt: Date.now(),
+    msgCount: meta.msgCount, // baseline for reply detection
   });
   await saveHolds(next);
   await ensureAlarm();
@@ -192,12 +193,13 @@ async function cancelHold({ threadId, messageId, returnToInbox }) {
   return { ok: true };
 }
 
-// Re-deliver every hold whose timer has expired. Runs on the alarm tick.
-async function returnDueThreads() {
+// Runs on every alarm tick. Two responsibilities per hold:
+//   • timer expired  → return it to the inbox, marked unread.
+//   • reply arrived  → drop the Hold label early (a new message already pulled
+//                      the thread back into the inbox).
+async function processHolds() {
   const holds = await loadHolds();
-  const now = Date.now();
-  const due = holds.filter((h) => h.returnAt <= now);
-  if (due.length === 0) return;
+  if (holds.length === 0) return;
 
   let token;
   try {
@@ -207,21 +209,34 @@ async function returnDueThreads() {
   }
 
   const heldLabelId = (await chrome.storage.local.get(HELD_LABEL_KEY))[HELD_LABEL_KEY];
-  const remove = heldLabelId ? [heldLabelId] : [];
-  const delivered = new Set();
+  const removeLabel = heldLabelId ? [heldLabelId] : [];
+  const now = Date.now();
+  const done = new Set();
 
-  for (const hold of due) {
+  for (const hold of holds) {
     try {
-      // Bring it back to the inbox and mark unread so it stands out.
-      await modifyThread(token, hold.threadId, ['INBOX', 'UNREAD'], remove);
-      delivered.add(hold.threadId);
+      if (hold.returnAt <= now) {
+        // Timer expired — bring it back to the inbox and mark unread.
+        await modifyThread(token, hold.threadId, ['INBOX', 'UNREAD'], removeLabel);
+        done.add(hold.threadId);
+        continue;
+      }
+      // Not due yet — if a reply landed, clear the hold early.
+      if (hold.msgCount != null) {
+        const count = await threadMessageCount(token, hold.threadId);
+        if (count > hold.msgCount) {
+          // Just drop the Hold label; the reply already returned it to the inbox.
+          await modifyThread(token, hold.threadId, ['INBOX'], removeLabel);
+          done.add(hold.threadId);
+        }
+      }
     } catch {
-      // Leave undelivered holds for the next tick.
+      // Leave this hold for the next tick.
     }
   }
 
-  if (delivered.size) {
-    const remaining = (await loadHolds()).filter((h) => !delivered.has(h.threadId));
+  if (done.size) {
+    const remaining = (await loadHolds()).filter((h) => !done.has(h.threadId));
     await saveHolds(remaining);
   }
 }
@@ -232,7 +247,7 @@ chrome.runtime.onInstalled.addListener(ensureAlarm);
 chrome.runtime.onStartup.addListener(ensureAlarm);
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === ALARM_NAME) returnDueThreads();
+  if (alarm.name === ALARM_NAME) processHolds();
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

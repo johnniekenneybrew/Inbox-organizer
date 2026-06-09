@@ -62,6 +62,8 @@
     .glt-row-hold.show { display: inline-flex; }
     .glt-row-hold:hover { background: #e8f0fe; border-color: #1a73e8; }
     .glt-row-hold svg { width: 15px; height: 15px; }
+    .glt-row-when { position: fixed; z-index: 69; display: none; pointer-events: none; font-size: 12px; font-weight: 500; color: #5f6368; background: #fff; border: 1px solid #dadce0; border-radius: 12px; padding: 4px 10px; box-shadow: 0 1px 3px rgba(0,0,0,.18); white-space: nowrap; }
+    .glt-row-when.show { display: block; }
 
     /* Duration popover */
     .glt-pop { position: absolute; z-index: 80; min-width: 210px; background: #fff; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,.14), 0 1px 14px rgba(0,0,0,.12); padding: 8px; display: none; }
@@ -198,6 +200,7 @@
   </div>
 
   <button class="glt-row-hold" id="glt-row-hold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span class="glt-row-hold-label">Hold</span></button>
+  <div class="glt-row-when" id="glt-row-when"></div>
   <div class="glt-toast" id="glt-toast"></div>
 
   <script>
@@ -212,8 +215,8 @@
     ];
     // Pre-held items so the Hold tab + view are populated.
     const HELD = [
-      { id:'h1', sender:'Dana Cruz', from:'dana@acme.co', date:'Jun 05', unread:false, subject:'Renewal quote follow-up', preview:'Just checking in on the renewal quote we sent over last week…', when:'in 3 days', body:'Just checking in on the renewal quote we sent over last week — let me know if you have questions.\n\nDana' },
-      { id:'h2', sender:'Morgan Yu', from:'morgan@finchpay.com', date:'Jun 04', unread:false, subject:'Re: Statement of work', preview:'Sounds good — I\'ll get the SOW signed and back to you shortly…', when:'in 1 week', body:'Sounds good — I\'ll get the SOW signed and back to you shortly.\n\nMorgan' },
+      { id:'h1', sender:'Dana Cruz', from:'dana@acme.co', date:'Jun 05', unread:false, subject:'Renewal quote follow-up', preview:'Just checking in on the renewal quote we sent over last week…', when:'Jun 12, 9:00 AM', body:'Just checking in on the renewal quote we sent over last week — let me know if you have questions.\n\nDana' },
+      { id:'h2', sender:'Morgan Yu', from:'morgan@finchpay.com', date:'Jun 04', unread:false, subject:'Re: Statement of work', preview:'Sounds good — I\'ll get the SOW signed and back to you shortly…', when:'Jun 16, 9:00 AM', body:'Sounds good — I\'ll get the SOW signed and back to you shortly.\n\nMorgan' },
     ];
 
     let currentTab = 'INBOX';
@@ -238,7 +241,7 @@
           <div class="row-star"><svg viewBox="0 0 24 24"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03z"/></svg></div>
           <div class="sender">${r.sender}</div>
           <div class="subject-line"><span>${r.subject}</span> — <span style="font-weight:400">${r.preview}</span></div>
-          ${currentTab === 'Hold' ? `<div class="when">↩ ${r.when}</div>` : `<div class="date">${r.date}</div>`}
+          <div class="date">${r.date}</div>
         </div>`).join('') : `<div style="padding:60px;text-align:center;color:#5f6368">No conversations.</div>`;
       $('email-list').querySelectorAll('.email-row').forEach(row =>
         row.addEventListener('click', () => openConversation(row.dataset.id)));
@@ -347,9 +350,18 @@
       const r = row.getBoundingClientRect();
       rowBtn.classList.add('show');
       rowBtn.style.top = (r.top + r.height/2 - 14) + 'px';
-      rowBtn.style.left = (r.right - rowBtn.offsetWidth - 80) + 'px';
+      const btnLeft = r.right - rowBtn.offsetWidth - 80;
+      rowBtn.style.left = btnLeft + 'px';
+      const chip = $('glt-row-when');
+      if (ret) {
+        const h = HELD.find(x => x.id === rowTargetId);
+        chip.textContent = `Returns ${h ? h.when : ''}`;
+        chip.classList.add('show');
+        chip.style.top = (r.top + r.height/2 - 13) + 'px';
+        chip.style.left = (btnLeft - chip.offsetWidth - 8) + 'px';
+      } else chip.classList.remove('show');
     }
-    function hideRowSoon() { clearTimeout(rowHideT); rowHideT = setTimeout(() => { if (!pop.classList.contains('show')) rowBtn.classList.remove('show'); }, 250); }
+    function hideRowSoon() { clearTimeout(rowHideT); rowHideT = setTimeout(() => { if (!pop.classList.contains('show')) { rowBtn.classList.remove('show'); $('glt-row-when').classList.remove('show'); } }, 250); }
     $('email-list').addEventListener('mouseover', e => { const row = e.target.closest('.email-row'); if (row) { clearTimeout(rowHideT); showRowBtn(row); } });
     $('email-list').addEventListener('mouseout', e => { if (!e.relatedTarget?.closest?.('.email-row') && e.relatedTarget !== rowBtn) hideRowSoon(); });
     rowBtn.addEventListener('mouseenter', () => clearTimeout(rowHideT));

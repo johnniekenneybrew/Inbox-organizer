@@ -212,6 +212,23 @@
   outline-offset: 2px;
 }
 
+/* Return-date chip shown beside the Hold-view row button */
+.glt-row-when {
+  position: fixed;
+  z-index: 9996;
+  pointer-events: none;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #5f6368;
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 12px;
+  padding: 4px 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+}
+
 /* ── Hold duration popover ───────────────────────────────────────────────── */
 
 .glt-pop {

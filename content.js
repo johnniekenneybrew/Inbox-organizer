@@ -577,12 +577,22 @@ function setupRowHoldHover() {
   btn.style.display = 'none';
   document.body.appendChild(btn);
 
+  // Non-interactive chip showing when a held email will return (Hold view only).
+  const whenChip = document.createElement('div');
+  whenChip.id = 'glt-row-when';
+  whenChip.className = 'glt-row-when';
+  whenChip.style.display = 'none';
+  document.body.appendChild(whenChip);
+
   let target = null;
 
   const hideSoon = () => {
     clearTimeout(rowHoldHideTimer);
     rowHoldHideTimer = setTimeout(() => {
-      if (!pickerOpen) btn.style.display = 'none';
+      if (!pickerOpen) {
+        btn.style.display = 'none';
+        whenChip.style.display = 'none';
+      }
     }, 250);
   };
 
@@ -598,6 +608,17 @@ function setupRowHoldHover() {
     btn.style.display = 'inline-flex';
     btn.style.top = `${r.top + r.height / 2 - btn.offsetHeight / 2}px`;
     btn.style.left = `${r.right - btn.offsetWidth - 16}px`;
+
+    // In the Hold view, show when this thread is due back, beside the button.
+    const hold = returnMode ? cachedHolds.find((h) => h.threadId === t.threadId) : null;
+    if (hold) {
+      whenChip.textContent = `Returns ${formatWhen(hold.returnAt)}`;
+      whenChip.style.display = 'block';
+      whenChip.style.top = `${r.top + r.height / 2 - whenChip.offsetHeight / 2}px`;
+      whenChip.style.left = `${r.right - btn.offsetWidth - 16 - whenChip.offsetWidth - 8}px`;
+    } else {
+      whenChip.style.display = 'none';
+    }
   };
 
   document.addEventListener('mouseover', (e) => {
