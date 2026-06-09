@@ -30,8 +30,12 @@ A Chrome extension (Manifest V3) that adds a sticky tab bar inside Gmail for ins
 
 1. Open `chrome://extensions`
 2. Enable **Developer mode** (top-right toggle)
-3. Click **Load unpacked** and select the `gmail-label-tabs` folder
-4. Note the **Extension ID** that appears (e.g. `abcdefghijklmnopqrstuvwxyzabcdef`)
+3. Click **Load unpacked** and select the repo folder
+4. The **Extension ID** is pinned by the `key` field in `manifest.json`, so it is always:
+   ```
+   alppbmfhhihpefnnkokcmmalblhdnnad
+   ```
+   (Loading unpacked on any machine produces this same ID, which is what the OAuth client below is registered against.)
 
 ### 2. Create an OAuth 2.0 client in Google Cloud
 
@@ -39,7 +43,7 @@ A Chrome extension (Manifest V3) that adds a sticky tab bar inside Gmail for ins
 2. Navigate to **APIs & Services → Credentials**
 3. Click **Create Credentials → OAuth client ID**
 4. Choose application type: **Chrome Extension**
-5. Paste the Extension ID from step 1 into the **Application ID** field
+5. Paste the pinned Extension ID (`alppbmfhhihpefnnkokcmmalblhdnnad`) into the **Application ID** field
 6. Click **Create** and copy the **Client ID**
 
 > The project must have the **Gmail API** enabled:
