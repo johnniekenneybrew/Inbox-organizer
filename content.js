@@ -405,6 +405,11 @@ function openHoldPicker(anchorEl, target, onAfter) {
       </select>
       <button class="glt-pop-cgo">Hold</button>
     </div>
+    <p class="glt-pop-sub">Or on a specific date</p>
+    <div class="glt-pop-date">
+      <input type="datetime-local" class="glt-pop-dt" aria-label="Return on a specific date and time">
+      <button class="glt-pop-cgo glt-pop-dgo">Set</button>
+    </div>
   `;
 
   document.body.appendChild(pop);
@@ -445,6 +450,21 @@ function openHoldPicker(anchorEl, target, onAfter) {
     const label = `${amount} ${amount === 1 ? singular : unit}`;
     saveCustomDuration({ label, amount, unit });
     commitHold(target, Date.now() + amount * UNIT_MS[unit], onAfter);
+  });
+
+  // Specific calendar date/time — held until that exact moment (not cached).
+  pop.querySelector('.glt-pop-dgo').addEventListener('click', () => {
+    const val = pop.querySelector('.glt-pop-dt').value;
+    if (!val) {
+      flashError(pop, 'Pick a date and time.');
+      return;
+    }
+    const when = new Date(val).getTime();
+    if (!when || when <= Date.now()) {
+      flashError(pop, 'Pick a date/time in the future.');
+      return;
+    }
+    commitHold(target, when, onAfter);
   });
 
   setTimeout(() => {
