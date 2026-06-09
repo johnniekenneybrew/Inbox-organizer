@@ -14,10 +14,12 @@ A Chrome extension (Manifest V3) that adds a sticky tab bar inside Gmail for ins
 ### Hold (boomerang)
 - **From the inbox list:** hover any row and click the inline **Hold** button — no need to open the email
 - **From an open conversation:** click **Hold** in the tab bar
-- Pick when it should come back: presets (1 hour, 3 hours, tomorrow 9 AM, 2 days, 1 week) or a custom date/time
-- The email is archived out of the inbox and tagged with a **⏳ Held** label
-- When the timer expires, a background alarm returns it to the inbox and marks it **unread** so it stands out
-- The **⏳ _n_** pill in the tab bar opens a manager to see, return-now, or cancel pending holds
+- Pick when it should come back: **3 days**, **1 week**, or a **Custom** duration (a number of hours/days/weeks)
+- Custom durations are remembered — each one you enter is cached locally (`chrome.storage.local`) and appears as its own quick-pick button next time (removable with the ✕)
+- The email is archived out of the inbox and tagged with the **Hold** label
+- The **Hold** tab on the right of the bar opens the Hold label so you can see and open the held emails in Gmail; it shows a count badge
+- **Return now** is available both on a held email's row (hover) and inside the opened email; the automatic timer return and Return now both bring the email back **unread**
+- The Hold tab/label name is **customizable** in the settings (gear) panel — defaults to "Hold"
 - Holds are tracked in `chrome.storage.local`; the return job runs in the service worker via `chrome.alarms` (checked once a minute)
 
 > The Hold timer is unconditional — the email returns when the timer fires regardless of whether anyone replied.

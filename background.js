@@ -8,9 +8,10 @@
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const API            = 'https://www.googleapis.com/gmail/v1/users/me';
-const HELD_LABEL_NAME = '⏳ Held';          // "⏳ Held"
+const DEFAULT_HOLD_NAME = 'Hold';               // user-customizable via storage.sync
 const HOLDS_KEY      = 'heldThreads';           // chrome.storage.local
 const HELD_LABEL_KEY = 'heldLabelId';           // cached label id
+const HOLD_NAME_KEY  = 'holdLabelName';         // chrome.storage.sync
 const ALARM_NAME     = 'glt-check-holds';
 const CHECK_PERIOD_MIN = 1;                      // MV3 minimum granularity
 
@@ -59,18 +60,25 @@ function modifyThread(token, threadId, addLabelIds, removeLabelIds) {
   });
 }
 
-// Find (or create) the "⏳ Held" label and cache its id.
+// The user-customizable Hold label name (defaults to "Hold").
+async function getHoldName() {
+  const v = (await chrome.storage.sync.get(HOLD_NAME_KEY))[HOLD_NAME_KEY];
+  return v || DEFAULT_HOLD_NAME;
+}
+
+// Find (or create) the Hold label and cache its id.
 async function ensureHeldLabel(token) {
   const cached = (await chrome.storage.local.get(HELD_LABEL_KEY))[HELD_LABEL_KEY];
   if (cached) return cached;
 
+  const name = await getHoldName();
   const { labels = [] } = await api(token, '/labels');
-  let label = labels.find((l) => l.name === HELD_LABEL_NAME);
+  let label = labels.find((l) => l.name === name);
   if (!label) {
     label = await api(token, '/labels', {
       method: 'POST',
       body: JSON.stringify({
-        name: HELD_LABEL_NAME,
+        name,
         labelListVisibility: 'labelShow',
         messageListVisibility: 'show',
       }),
@@ -78,6 +86,19 @@ async function ensureHeldLabel(token) {
   }
   await chrome.storage.local.set({ [HELD_LABEL_KEY]: label.id });
   return label.id;
+}
+
+// Persist a new Hold label name and rename the Gmail label to match.
+async function setHoldLabelName(name) {
+  await chrome.storage.sync.set({ [HOLD_NAME_KEY]: name });
+  const token = await getToken(true);
+  const id = (await chrome.storage.local.get(HELD_LABEL_KEY))[HELD_LABEL_KEY];
+  if (id) {
+    await api(token, `/labels/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) });
+  } else {
+    await ensureHeldLabel(token); // not created yet — create with the new name
+  }
+  return { ok: true };
 }
 
 // Resolve a usable threadId + display metadata from whatever the content script
@@ -152,12 +173,18 @@ async function holdThread({ threadId, messageId, returnAt }) {
   return { ok: true, returnAt, subject: meta.subject };
 }
 
-async function cancelHold({ threadId, returnToInbox }) {
+async function cancelHold({ threadId, messageId, returnToInbox }) {
+  const token = await getToken(true);
+
+  // The Hold view / row may only give us a message id — resolve to a thread.
+  if (!threadId && messageId) {
+    threadId = (await resolveThreadMeta(token, { messageId })).threadId;
+  }
+
   const holds = await loadHolds();
   await saveHolds(holds.filter((h) => h.threadId !== threadId));
 
   if (returnToInbox) {
-    const token = await getToken(true);
     const heldLabelId = (await chrome.storage.local.get(HELD_LABEL_KEY))[HELD_LABEL_KEY];
     // Mark unread on the way back so it stands out — same as the timer return.
     await modifyThread(token, threadId, ['INBOX', 'UNREAD'], heldLabelId ? [heldLabelId] : []);
@@ -232,6 +259,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
     case 'CANCEL_HOLD':
       cancelHold(message)
+        .then(sendResponse)
+        .catch((err) => sendResponse({ error: err.message }));
+      return true;
+
+    case 'SET_HOLD_LABEL_NAME':
+      setHoldLabelName(message.name)
         .then(sendResponse)
         .catch((err) => sendResponse({ error: err.message }));
       return true;
