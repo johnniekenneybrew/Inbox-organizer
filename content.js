@@ -306,22 +306,51 @@ function getOpenConversation() {
   return null;
 }
 
+/**
+ * Thread descriptors for the rows the user has checkbox-selected in the visible
+ * list. Gmail marks a selected row with the `x7` class and an aria-checked
+ * checkbox; we accept either signal.
+ */
+function getSelectedRows() {
+  const main = findVisibleMain();
+  if (!main) return [];
+  const rows = [...main.querySelectorAll('tr.zA')].filter(
+    (r) => r.classList.contains('x7') || r.querySelector('[role="checkbox"][aria-checked="true"]')
+  );
+  return rows.map(getRowThread).filter(Boolean);
+}
+
 // ─── Bar action + Hold tab state ────────────────────────────────────────────────
 
 function updateHoldUI() {
   const action = document.querySelector(`#${BAR_ID} .glt-hold`);
   if (action) {
+    const label = action.querySelector('.glt-hold-label');
     const convo = getOpenConversation();
-    if (!convo) {
-      action.style.display = 'none';
-    } else {
+    const selected = convo ? [] : getSelectedRows();
+
+    if (convo) {
+      // A single open conversation.
       action.style.display = '';
       const held = threadIsHeld(convo.threadId);
+      action.dataset.scope = 'one';
       action.dataset.mode = held ? 'return' : 'hold';
-      action.querySelector('.glt-hold-label').textContent = held ? 'Return now' : 'Hold';
+      label.textContent = held ? 'Return now' : 'Hold';
       action.title = held
         ? 'Return this email to the inbox now (marked unread)'
-        : `Hold this email — return it to the inbox after a timer`;
+        : 'Hold this email — return it to the inbox after a timer';
+    } else if (selected.length) {
+      // One or more checkbox-selected rows — act on all of them.
+      action.style.display = '';
+      const ret = isCurrentViewHold();
+      action.dataset.scope = 'bulk';
+      action.dataset.mode = ret ? 'return' : 'hold';
+      label.textContent = `${ret ? 'Return now' : 'Hold'} (${selected.length})`;
+      action.title = ret
+        ? `Return ${selected.length} selected email(s) to the inbox`
+        : `Hold ${selected.length} selected email(s)`;
+    } else {
+      action.style.display = 'none';
     }
   }
   updateHoldTab();
@@ -339,16 +368,47 @@ function updateHoldTab() {
   tab.title = `Held emails${n ? ` (${n})` : ''} — open the “${holdLabelName}” view`;
 }
 
-// Bar action button: hold the open email, or return it if it's already held.
+// Bar action button: hold / return the open email, or all selected rows.
 function onBarActionClick() {
+  const anchor = document.querySelector(`#${BAR_ID} .glt-hold`);
+
+  if (anchor.dataset.scope === 'bulk') {
+    const targets = getSelectedRows();
+    if (!targets.length) return;
+    if (anchor.dataset.mode === 'return') {
+      bulkReturn(targets);
+    } else {
+      openHoldPicker(anchor, targets, () => {});
+    }
+    return;
+  }
+
   const convo = getOpenConversation();
   if (!convo) return;
-  const anchor = document.querySelector(`#${BAR_ID} .glt-hold`);
   if (anchor.dataset.mode === 'return') {
     returnThread(convo, (ok) => { if (ok && getOpenConversation()) history.back(); });
   } else {
     openHoldPicker(anchor, convo, (held) => { if (held && getOpenConversation()) history.back(); });
   }
+}
+
+// Return every given held thread to the inbox now.
+async function bulkReturn(targets) {
+  let ok = 0;
+  let fail = 0;
+  for (const t of targets) {
+    try {
+      await sendBg({ type: 'CANCEL_HOLD', threadId: t.threadId, messageId: t.messageId, returnToInbox: true });
+      if (t.rowEl) t.rowEl.style.display = 'none';
+      ok++;
+    } catch {
+      fail++;
+    }
+  }
+  await refreshHolds();
+  if (ok && !fail) toast(`Returned ${ok} email${ok === 1 ? '' : 's'} to inbox`);
+  else if (ok) toast(`Returned ${ok}; ${fail} failed`, true);
+  else toast(`Couldn't return ${fail} email${fail === 1 ? '' : 's'}`, true);
 }
 
 // ─── Messaging helpers ──────────────────────────────────────────────────────────
@@ -495,22 +555,33 @@ function closePopover() {
   pickerOpen = false;
 }
 
+// `target` may be a single { threadId | messageId, rowEl } or an array of them.
 async function commitHold(target, returnAt, onAfter) {
   closePopover();
-  try {
-    const res = await sendBg({
-      type: 'HOLD_THREAD',
-      threadId: target.threadId,
-      messageId: target.messageId,
-      returnAt,
-    });
-    await refreshHolds();
-    toast(`Held — returns ${formatWhen(res.returnAt)}`);
-    onAfter?.(true);
-  } catch (err) {
-    toast(`Couldn't hold this email: ${err.message}`, true);
-    onAfter?.(false);
+  const targets = Array.isArray(target) ? target : [target];
+  let ok = 0;
+  let fail = 0;
+  for (const t of targets) {
+    try {
+      await sendBg({ type: 'HOLD_THREAD', threadId: t.threadId, messageId: t.messageId, returnAt });
+      // It's archived (INBOX removed) on the server — hide the row so it
+      // visibly leaves the inbox right away.
+      if (t.rowEl) t.rowEl.style.display = 'none';
+      ok++;
+    } catch {
+      fail++;
+    }
   }
+  await refreshHolds();
+  const when = formatWhen(returnAt);
+  if (ok && !fail) {
+    toast(targets.length > 1 ? `Held ${ok} emails — return ${when}` : `Held — returns ${when}`);
+  } else if (ok) {
+    toast(`Held ${ok}; ${fail} failed`, true);
+  } else {
+    toast(`Couldn't hold ${fail === 1 ? 'this email' : `${fail} emails`}`, true);
+  }
+  onAfter?.(ok > 0);
 }
 
 // Return a held thread to the inbox now (marked unread), removing its hold.

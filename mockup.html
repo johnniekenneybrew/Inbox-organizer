@@ -97,7 +97,9 @@
     .email-row:hover { box-shadow: inset 1px 0 0 #dadce0, inset -1px 0 0 #dadce0, 0 1px 2px 0 rgba(60,64,67,.3); z-index: 1; position: relative; }
     .email-row.unread { background: #f2f6fc; font-weight: 700; }
     .email-row.unread .sender, .email-row.unread .subject-line { color: #202124; }
-    .row-check { width: 18px; height: 18px; border: 2px solid #5f6368; border-radius: 2px; flex-shrink: 0; }
+    .row-check { width: 18px; height: 18px; border: 2px solid #5f6368; border-radius: 2px; flex-shrink: 0; cursor: pointer; }
+    .email-row.selected { background: #c2dbff; }
+    .email-row.selected .row-check { background: #1a73e8; border-color: #1a73e8; }
     .row-star svg { width: 18px; height: 18px; fill: #dadce0; }
     .sender { width: 168px; color: #5f6368; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .subject-line { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #5f6368; }
@@ -222,6 +224,7 @@
     let currentTab = 'INBOX';
     let openId = null;
     const removed = new Set();
+    const selected = new Set();
     const $ = (id) => document.getElementById(id);
 
     function inboxRows() { return INBOX.filter(r => !removed.has(r.id)); }
@@ -236,15 +239,23 @@
       $('pagination').textContent = rows.length ? `1–${rows.length} of ${rows.length}` : '0 of 0';
       $('inbox-count').textContent = inboxRows().length || '';
       $('email-list').innerHTML = rows.length ? rows.map(r => `
-        <div class="email-row${r.unread ? ' unread' : ''}" data-id="${r.id}">
+        <div class="email-row${r.unread ? ' unread' : ''}${selected.has(r.id) ? ' selected' : ''}" data-id="${r.id}">
           <div class="row-check"></div>
           <div class="row-star"><svg viewBox="0 0 24 24"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03z"/></svg></div>
           <div class="sender">${r.sender}</div>
           <div class="subject-line"><span>${r.subject}</span> — <span style="font-weight:400">${r.preview}</span></div>
           <div class="date">${r.date}</div>
         </div>`).join('') : `<div style="padding:60px;text-align:center;color:#5f6368">No conversations.</div>`;
-      $('email-list').querySelectorAll('.email-row').forEach(row =>
-        row.addEventListener('click', () => openConversation(row.dataset.id)));
+      $('email-list').querySelectorAll('.email-row').forEach(row => {
+        row.addEventListener('click', () => openConversation(row.dataset.id));
+        row.querySelector('.row-check').addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = row.dataset.id;
+          if (selected.has(id)) { selected.delete(id); row.classList.remove('selected'); }
+          else { selected.add(id); row.classList.add('selected'); }
+          updateBar();
+        });
+      });
     }
 
     function updateBar() {
@@ -254,8 +265,19 @@
       $('glt-hold-tab-count').textContent = HELD.length || '';
       $('glt-hold-tab-count').style.display = HELD.length ? '' : 'none';
       $('sidebar-hold-count').textContent = HELD.length || '';
-      // bar action button only shows when an email is open
-      $('glt-hold').classList.toggle('show', !!openId);
+      // Action button: single open email, or bulk over selected rows.
+      const n = selected.size;
+      const action = $('glt-hold');
+      if (openId) {
+        action.classList.add('show'); action.dataset.scope = 'one';
+      } else if (n > 0) {
+        action.classList.add('show'); action.dataset.scope = 'bulk';
+        const ret = currentTab === 'Hold';
+        action.dataset.mode = ret ? 'return' : 'hold';
+        action.querySelector('.glt-hold-label').textContent = `${ret ? 'Return now' : 'Hold'} (${n})`;
+      } else {
+        action.classList.remove('show');
+      }
     }
 
     function openConversation(id) {
@@ -306,8 +328,13 @@
     }
     function closePop() { pop.classList.remove('show'); }
     $('glt-hold').addEventListener('click', () => {
-      if ($('glt-hold').dataset.mode === 'return') return returnNow(openId);
-      pop.classList.contains('show') ? closePop() : openPopAt($('glt-hold'), openId);
+      const a = $('glt-hold');
+      if (a.dataset.scope === 'bulk') {
+        if (a.dataset.mode === 'return') return bulkReturnNow();
+        return pop.classList.contains('show') ? closePop() : openPopAt(a, '__bulk__');
+      }
+      if (a.dataset.mode === 'return') return returnNow(openId);
+      pop.classList.contains('show') ? closePop() : openPopAt(a, openId);
     });
     $('glt-pop-cgo').addEventListener('click', () => {
       const amt = parseInt($('glt-pop-amt').value, 10); const unit = $('glt-pop-unit').value;
@@ -323,12 +350,16 @@
 
     function commitHold(whenLabel) {
       closePop();
-      const m = INBOX.find(x => x.id === holdTargetId) || HELD.find(x => x.id === holdTargetId);
-      if (!m) return;
-      if (!removed.has(m.id)) removed.add(m.id);
-      if (!HELD.find(h => h.id === m.id)) HELD.push({ ...m, when: whenLabel });
+      const ids = holdTargetId === '__bulk__' ? [...selected] : [holdTargetId || openId];
+      ids.forEach(id => {
+        const m = INBOX.find(x => x.id === id) || HELD.find(x => x.id === id);
+        if (!m) return;
+        removed.add(m.id);
+        if (!HELD.find(h => h.id === m.id)) HELD.push({ ...m, when: whenLabel });
+      });
+      selected.clear();
       $('glt-row-hold').classList.remove('show');
-      toast(`Held — returns ${whenLabel}`);
+      toast(ids.length > 1 ? `Held ${ids.length} emails — return ${whenLabel}` : `Held — returns ${whenLabel}`);
       if (openId) backToList();
       renderList(); updateBar();
     }
@@ -337,6 +368,13 @@
       const i = HELD.findIndex(h => h.id === id); if (i > -1) HELD.splice(i,1);
       toast('Returned to inbox — marked unread');
       if (openId) backToList();
+      renderList(); updateBar();
+    }
+    function bulkReturnNow() {
+      const ids = [...selected];
+      ids.forEach(id => { removed.delete(id); const i = HELD.findIndex(h => h.id === id); if (i > -1) HELD.splice(i,1); });
+      selected.clear();
+      toast(`Returned ${ids.length} email${ids.length === 1 ? '' : 's'} to inbox`);
       renderList(); updateBar();
     }
 
@@ -370,7 +408,7 @@
 
     function toast(msg) { const el = $('glt-toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(window._t); window._t = setTimeout(() => el.classList.remove('show'), 3500); }
 
-    function switchTab(tab) { currentTab = tab; backToList(); document.querySelectorAll('.nav-item[data-tab]').forEach(n => n.classList.toggle('active', n.dataset.tab === tab)); renderList(); updateBar(); }
+    function switchTab(tab) { currentTab = tab; selected.clear(); backToList(); document.querySelectorAll('.nav-item[data-tab]').forEach(n => n.classList.toggle('active', n.dataset.tab === tab)); renderList(); updateBar(); }
     document.querySelectorAll('.glt-tab[data-tab], .nav-item[data-tab]').forEach(el => el.addEventListener('click', () => switchTab(el.dataset.tab)));
     $('glt-hold-tab').addEventListener('click', () => switchTab('Hold'));
 
@@ -381,6 +419,7 @@
       gotoHold() { switchTab('Hold'); },
       hoverReturn(id) { const row = document.querySelector(`.email-row[data-id="${id}"]`); if (row) showRowBtn(row); },
       openHeld(id) { switchTab('Hold'); openConversation(id); },
+      selectRows(ids) { ids.forEach(id => selected.add(id)); renderList(); updateBar(); },
     };
   </script>
 </body>
