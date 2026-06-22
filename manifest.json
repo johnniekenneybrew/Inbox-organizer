@@ -1,8 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Gmail Label Tabs",
-  "version": "1.1",
+  "version": "1.2",
   "description": "Pinned label tabs for Gmail, plus a Hold feature that snoozes emails out of the inbox and returns them after a timer.",
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
 
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0v0ZwJYBTsAw+DfQA70VmAYEonKIKxpxdU/gILz0qG4Kyq3Xq4GoSjZZDNVbWS0bIcTxqA1wbwaDKHaWUsbBr3SsHKKP6+hiYDgHI0jzF3ekdNeDTuinjH5oQOy0klAn8+b+JozQWe6B7jK3TXGkS8llUwJd2xmTpqwWmHXU46nth19szYeHfByRNbX45Oa8Cs4WwG+tt5jAcTyLCuWheo6wKFsBj08ZypZfVrLtoYAWccWWViosEO5yajIF5tN+DF0xX9KAE22zwL96wz9nX0NnxL5L2wIdvUF0b1b6WojZkPmLRhy8qilnlf5UsXuLn4LvguFE0SmzP1SRXBoLrwIDAQAB",
 
@@ -39,6 +46,12 @@
 
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Gmail Label Tabs"
+    "default_title": "Gmail Label Tabs",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   }
 }
