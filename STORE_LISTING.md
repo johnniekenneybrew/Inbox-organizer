@@ -19,32 +19,41 @@ them return on a timer.
 Productivity / Workflow & Planning
 
 ## Detailed description
-Inbox Organizer adds a clean tab bar to the top of Gmail so you can jump between
-your labels in one click — and a built‑in Hold (snooze) feature so emails leave
-your inbox now and come back exactly when you want.
+Inbox Organizer makes Gmail faster in two ways: it turns your labels into one‑click
+tabs, and it lets you put emails on hold so they leave your inbox now and come back
+exactly when you can deal with them.
 
-LABEL TABS
-• A sticky tab bar across the top of Gmail. Inbox is always first.
-• Pick which labels show as tabs and drag to reorder them (gear → settings).
-• Your choices sync across devices via your Google account.
+If you live in Gmail, two things slow you down every day — hunting through the
+label sidebar, and emails you can't act on yet sitting in your inbox nagging you.
+Inbox Organizer fixes both.
 
-HOLD (boomerang / snooze)
-• Hold any email and choose when it returns: 3 days, 1 week, a custom duration
-  (hours/days/weeks), or a specific date & time.
-• Custom durations you enter are remembered as one‑click options.
-• Held emails leave your inbox and are tagged with a "Hold" label (you can rename
-  it). When the timer fires they return to your inbox, marked unread.
-• Hold from an open email, straight from a list row on hover, or in bulk by
-  selecting multiple rows.
-• A "Hold" tab shows everything you've got on hold; return any of them early with
-  one click — individually or in bulk.
-• If someone replies before the timer is up, the hold clears automatically.
+GET TO ANY LABEL IN ONE CLICK
+Pin your most‑used labels as tabs across the top of Gmail (Inbox is always first),
+so you stop digging through the sidebar. Choose which labels appear and drag them
+into the order you want — and your setup follows you to every device you use Gmail
+on.
 
-PRIVACY
-• Runs entirely in your browser and your own Google account.
-• No analytics, no tracking, nothing sent to the developer, nothing sold.
-• Only reads label data and the limited thread info needed to hold/return the
-  emails you choose. Full privacy policy: https://johnniekenneybrew.github.io/Inbox-organizer/PRIVACY.html  (GitHub Pages — enable in repo Settings → Pages. Later you can move it to https://lazolabs.app/privacy and update this URL.)
+CLEAR YOUR INBOX WITHOUT LOSING TRACK ("Hold")
+Not ready to deal with an email? Hold it. It leaves your inbox immediately and
+returns — marked unread — exactly when you choose: in 3 days, a week, a custom
+amount of time, or on a specific date.
+• Hold an open email, a single message on hover, or a whole batch at once.
+• Everything you've held lives under a "Hold" tab, so nothing slips through the
+  cracks — bring any of it back early with a single click.
+• If someone replies before your timer is up, the hold clears automatically, so a
+  live conversation never gets stuck in limbo.
+
+WHY YOU'LL WANT IT
+• A calmer inbox that shows only what needs you right now.
+• Your labels, always one click away.
+• Peace of mind that held email always comes back on schedule.
+
+PRIVATE BY DESIGN
+Inbox Organizer runs entirely in your browser and your own Google account. No
+analytics, no tracking, nothing sent to us, nothing sold. It only reads your label
+list and the limited thread details needed to hold and return the emails you
+choose — it never reads your email content and never sends mail.
+Full privacy policy: https://johnniekenneybrew.github.io/Inbox-organizer/PRIVACY.html
 
 ## Single purpose (required)
 The single purpose of this extension is to help users navigate Gmail labels and
