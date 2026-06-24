@@ -1,15 +1,21 @@
 # Inbox Organizer
 
-A Chrome extension (Manifest V3) that adds a sticky tab bar inside Gmail for instant label navigation, plus a **Hold** feature that snoozes emails out of the inbox and brings them back on a timer.
+A Chrome extension (Manifest V3) that turns Gmail labels and saved searches into a sticky tab bar, lets you add private notes to emails, and includes a **Hold** feature that snoozes emails out of the inbox and brings them back on a timer.
 
 ## What it does
 
-### Label tabs
-- Renders a tab bar at the top of the Gmail inbox — **Inbox** is always pinned first
-- Clicking a tab runs a `label:[label-name]` search in Gmail
-- Active tab shows a blue underline indicator
-- Settings panel (gear icon) lets you pick which labels to show and drag to reorder
-- Saved to `chrome.storage.sync` — persists across sessions and syncs across devices
+### Tabs
+- Renders a tab bar at the top of Gmail — **Inbox** is always first
+- Add a tab for a **Gmail label**, a label **plus its sublabels**, or any **search query** (e.g. `has:attachment receipt`, `from:boss@co.com`)
+- Per-tab **font color** and **background color**, plus an editable **name**, **query**, and **description** (tooltip)
+- Manage tabs from the settings (gear) panel: **+ Add tab**, edit, delete, drag to reorder
+- Saved to `chrome.storage.sync` — persists and syncs across devices
+
+### Email notes
+- Open any email to get a private **Note** panel at the top of the conversation
+- Notes auto-save and sync across your devices via `chrome.storage.sync` (one key per thread)
+- Notes are **private to you** — never written into the email, never sent anywhere but your own Google account storage
+- Emails that have a note show a small 📝 marker in the list
 
 ### Hold (boomerang)
 - **From the inbox list:** hover any row and click the inline **Hold** button — no need to open the email

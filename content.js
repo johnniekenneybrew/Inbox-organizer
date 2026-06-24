@@ -19,12 +19,15 @@ const DEFAULT_PRESETS = [
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
-let cachedPinned     = [];               // [{ id, name }, …] pinned label tabs
+let cachedPinned     = [];               // tab objects: { id, type, name, query, … }
 let cachedHolds      = [];               // [{ threadId, subject, returnAt }, …]
 let customDurations  = [];               // [{ label, amount, unit }, …] (local cache)
 let holdLabelName    = DEFAULT_HOLD_NAME; // user-customizable Hold label/tab name
+let notesIndex       = new Set();         // thread IDs that have a saved note
 let settingsOpen     = false;
 let pickerOpen       = false;
+
+function genId() { return 't' + Math.random().toString(36).slice(2, 9); }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -62,14 +65,59 @@ async function fetchUserLabels() {
 
 // ─── Storage ──────────────────────────────────────────────────────────────────
 
-function loadPinned() {
+function loadTabs() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(['tabs', 'pinnedLabels'], (d) => {
+      if (Array.isArray(d.tabs)) return resolve(d.tabs);
+      // Migrate legacy pinned-label tabs into the new model.
+      const migrated = (d.pinnedLabels || []).map((l) => ({
+        id: genId(), type: 'label', name: l.name, labelId: l.id,
+        labelName: l.name, sublabels: false, query: `label:"${l.name}"`,
+      }));
+      if (migrated.length) chrome.storage.sync.set({ tabs: migrated });
+      resolve(migrated);
+    });
+  });
+}
+
+function saveTabs(tabs) {
+  return new Promise((resolve) => chrome.storage.sync.set({ tabs }, resolve));
+}
+
+// ── Email notes (synced, one sync key per thread) ──
+const NOTE_PREFIX = 'note:';
+function noteKey(id) { return NOTE_PREFIX + id; }
+
+function loadNotesIndex() {
   return new Promise((resolve) =>
-    chrome.storage.sync.get('pinnedLabels', (d) => resolve(d.pinnedLabels || []))
+    chrome.storage.sync.get(null, (all) => {
+      notesIndex = new Set(
+        Object.keys(all || {})
+          .filter((k) => k.startsWith(NOTE_PREFIX))
+          .map((k) => k.slice(NOTE_PREFIX.length))
+      );
+      resolve();
+    })
   );
 }
 
-function savePinned(labels) {
-  return new Promise((resolve) => chrome.storage.sync.set({ pinnedLabels: labels }, resolve));
+function getNote(id) {
+  return new Promise((resolve) =>
+    chrome.storage.sync.get(noteKey(id), (d) => resolve(d[noteKey(id)] || ''))
+  );
+}
+
+function saveNote(id, text) {
+  return new Promise((resolve, reject) => {
+    if (!text.trim()) {
+      chrome.storage.sync.remove(noteKey(id), () => { notesIndex.delete(id); resolve(); });
+    } else {
+      chrome.storage.sync.set({ [noteKey(id)]: text }, () => {
+        if (chrome.runtime.lastError) return reject(new Error(chrome.runtime.lastError.message));
+        notesIndex.add(id); resolve();
+      });
+    }
+  });
 }
 
 function loadHoldLabelName() {
@@ -127,6 +175,35 @@ function goToLabel(name) {
   }
 }
 
+// Navigate to a tab: a plain label uses Gmail's native label view; a query tab
+// (or a label-with-sublabels) runs a Gmail search.
+function goToTab(tab) {
+  if (tab.type === 'label' && !tab.sublabels && (tab.labelName || tab.name)) {
+    goToLabel(tab.labelName || tab.name);
+  } else {
+    location.hash = '#search/' + encodeURIComponent(tab.query || '');
+  }
+}
+
+// The decoded query when a search view is open, else null.
+function currentSearchQuery() {
+  const m = location.hash.match(/^#search\/(.+)$/);
+  if (!m) return null;
+  return decodeURIComponent(m[1].replace(/\+/g, ' '));
+}
+
+function normQuery(q) {
+  return (q || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function tabIsActive(tab) {
+  const sq = currentSearchQuery();
+  if (tab.type === 'label' && !tab.sublabels) {
+    return !sq && activeTabName()?.toLowerCase() === (tab.labelName || tab.name).toLowerCase();
+  }
+  return sq != null && normQuery(sq) === normQuery(tab.query);
+}
+
 // Are we currently looking at the Hold label view?
 function isCurrentViewHold() {
   const a = activeTabName();
@@ -139,36 +216,31 @@ function threadIsHeld(threadId) {
 
 // ─── Tab Bar ──────────────────────────────────────────────────────────────────
 
-function buildBar(pinned) {
-  const activeName = activeTabName();
+function buildBar(tabs) {
   const bar = document.createElement('div');
   bar.id = BAR_ID;
   bar.setAttribute('role', 'tablist');
-  bar.setAttribute('aria-label', 'Label tabs');
+  bar.setAttribute('aria-label', 'Gmail tabs');
 
-  const tabs = [{ id: 'INBOX', name: 'Inbox' }, ...pinned];
+  // Inbox — always first, built-in.
+  const inboxBtn = document.createElement('button');
+  inboxBtn.className = 'glt-tab';
+  inboxBtn.setAttribute('role', 'tab');
+  inboxBtn.textContent = 'Inbox';
+  inboxBtn.dataset.builtin = 'inbox';
+  inboxBtn.addEventListener('click', () => { goToLabel('INBOX'); setActiveTab(inboxBtn); });
+  bar.appendChild(inboxBtn);
 
-  tabs.forEach(({ id, name }) => {
+  (tabs || []).forEach((tab, i) => {
     const btn = document.createElement('button');
     btn.className = 'glt-tab';
     btn.setAttribute('role', 'tab');
-    btn.textContent = name;
-    btn.dataset.labelId = id;
-    btn.dataset.labelName = name;
-
-    const isActive =
-      id === 'INBOX'
-        ? activeName === 'INBOX'
-        : activeName?.toLowerCase() === name.toLowerCase();
-
-    btn.classList.toggle('glt-tab--active', isActive);
-    btn.setAttribute('aria-selected', String(isActive));
-
-    btn.addEventListener('click', () => {
-      goToLabel(id === 'INBOX' ? 'INBOX' : name);
-      setActiveTab(btn);
-    });
-
+    btn.textContent = tab.name;
+    btn.dataset.tabIndex = String(i);
+    if (tab.description) btn.title = tab.description;
+    if (tab.fg) btn.style.color = tab.fg;
+    if (tab.bg) { btn.style.background = tab.bg; btn.classList.add('glt-tab--colored'); }
+    btn.addEventListener('click', () => { goToTab(tab); setActiveTab(btn); });
     bar.appendChild(btn);
   });
 
@@ -214,14 +286,17 @@ function setActiveTab(activeBtn) {
 }
 
 function updateActiveTab() {
-  const activeName = activeTabName();
+  const sq = currentSearchQuery();
   document.querySelectorAll(`#${BAR_ID} .glt-tab`).forEach((btn) => {
-    const match =
-      btn.dataset.labelId === 'INBOX'
-        ? activeName === 'INBOX'
-        : activeName?.toLowerCase() === btn.dataset.labelName?.toLowerCase();
-    btn.classList.toggle('glt-tab--active', match);
-    btn.setAttribute('aria-selected', String(match));
+    let active;
+    if (btn.dataset.builtin === 'inbox') {
+      active = activeTabName() === 'INBOX' && !sq;
+    } else {
+      const t = cachedPinned[Number(btn.dataset.tabIndex)];
+      active = !!t && tabIsActive(t);
+    }
+    btn.classList.toggle('glt-tab--active', active);
+    btn.setAttribute('aria-selected', String(!!active));
   });
   updateHoldTab();
 }
@@ -264,12 +339,14 @@ function isBarVisible() {
   return !!(bar && bar.offsetParent !== null);
 }
 
-function injectBar(pinned) {
+function injectBar(tabs) {
   document.getElementById(BAR_ID)?.remove();
   const main = findVisibleMain();
   if (!main) return false;
-  main.prepend(buildBar(pinned));
+  main.prepend(buildBar(tabs));
+  updateActiveTab();
   updateHoldUI();
+  ensureNotePanel();
   return true;
 }
 
@@ -739,137 +816,180 @@ async function openSettings() {
   panel.id = PANEL_ID;
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-modal', 'true');
-  panel.setAttribute('aria-labelledby', 'glt-panel-title');
   panel.addEventListener('click', (e) => e.stopPropagation());
 
   panel.innerHTML = `
     <div class="glt-sp-head">
-      <h2 class="glt-sp-title" id="glt-panel-title">Settings</h2>
+      <h2 class="glt-sp-title">Settings</h2>
       <button class="glt-sp-x" aria-label="Close settings">&#x2715;</button>
     </div>
-    <div class="glt-sp-field">
-      <label class="glt-sp-flabel" for="glt-hold-name">Hold tab &amp; label name</label>
-      <input id="glt-hold-name" class="glt-sp-input" type="text" maxlength="40" placeholder="${escHtml(DEFAULT_HOLD_NAME)}">
+    <div class="glt-sp-scroll">
+      <div class="glt-sp-field">
+        <label class="glt-sp-flabel" for="glt-hold-name">Hold tab &amp; label name</label>
+        <input id="glt-hold-name" class="glt-sp-input" type="text" maxlength="40" placeholder="${escHtml(DEFAULT_HOLD_NAME)}">
+      </div>
+      <div class="glt-sp-sechead"><span>Tabs</span>
+        <button class="glt-sp-add" id="glt-add-tab">+ Add tab</button></div>
+      <p class="glt-sp-hint">Add a Gmail label or a saved search as a tab. Drag to reorder; click a tab to edit.</p>
+      <div class="glt-sp-list" id="glt-tabs-list"><p class="glt-sp-msg">Loading&hellip;</p></div>
+      <div id="glt-tab-form" class="glt-tabform" hidden></div>
     </div>
-    <p class="glt-sp-hint">Check labels to show as tabs. Drag rows to reorder.</p>
-    <div class="glt-sp-list" id="glt-sp-list">
-      <p class="glt-sp-msg">Loading your labels&hellip;</p>
-    </div>
-    <div class="glt-sp-foot">
-      <button class="glt-sp-save" id="glt-sp-save">Save</button>
-    </div>
+    <div class="glt-sp-foot"><button class="glt-sp-save" id="glt-sp-save">Save</button></div>
   `;
 
   document.body.append(overlay, panel);
-
   panel.querySelector('.glt-sp-x').addEventListener('click', closeSettings);
-  panel.querySelector('#glt-sp-save').addEventListener('click', handleSave);
   panel.querySelector('#glt-hold-name').value = holdLabelName;
-  panel.querySelector('.glt-sp-x').focus();
 
-  const listEl = panel.querySelector('#glt-sp-list');
+  let allLabels = [];
+  let workingTabs = cachedPinned.map((t) => ({ ...t }));
+  const listEl = panel.querySelector('#glt-tabs-list');
+  const formEl = panel.querySelector('#glt-tab-form');
 
-  try {
-    const [allLabels, pinned] = await Promise.all([fetchUserLabels(), loadPinned()]);
-    const pinnedMap = new Map(pinned.map((l) => [l.id, l]));
-    const pinnedOrdered = pinned
-      .filter((p) => allLabels.some((l) => l.id === p.id))
-      .map((p) => ({ ...p, name: allLabels.find((l) => l.id === p.id)?.name ?? p.name }));
-    const unpinned = allLabels.filter((l) => !pinnedMap.has(l.id));
-    populateList(listEl, [...pinnedOrdered, ...unpinned], pinnedMap);
-  } catch (err) {
-    listEl.innerHTML = `<p class="glt-sp-msg glt-sp-err">${escHtml(err.message)}</p>`;
+  try { allLabels = await fetchUserLabels(); } catch { /* labels optional for query tabs */ }
+  renderTabsList();
+
+  panel.querySelector('#glt-add-tab').addEventListener('click', () => openForm(null));
+  panel.querySelector('#glt-sp-save').addEventListener('click', onSaveAll);
+
+  function renderTabsList() {
+    if (!workingTabs.length) {
+      listEl.innerHTML = '<p class="glt-sp-msg">No tabs yet. Click “+ Add tab”.</p>';
+      return;
+    }
+    listEl.innerHTML = '';
+    let dragged = null;
+    const commitOrder = () => {
+      const order = [...listEl.querySelectorAll('.glt-trow')].map((r) => Number(r.dataset.i));
+      workingTabs = order.map((idx) => workingTabs[idx]);
+      renderTabsList();
+    };
+    workingTabs.forEach((tab, i) => {
+      const row = document.createElement('div');
+      row.className = 'glt-row glt-trow';
+      row.draggable = true;
+      row.dataset.i = String(i);
+      const typeLabel = tab.type === 'query' ? 'query' : (tab.sublabels ? 'label + sub' : 'label');
+      row.innerHTML = `
+        <span class="glt-row-handle" title="Drag to reorder">&#x2807;</span>
+        <span class="glt-trow-swatch" style="background:${escHtml(tab.bg || '#e8eaed')};color:${escHtml(tab.fg || '#202124')}">${escHtml((tab.name || '?').slice(0, 1))}</span>
+        <span class="glt-trow-name">${escHtml(tab.name)}</span>
+        <span class="glt-trow-type">${typeLabel}</span>
+        <button class="glt-trow-edit">Edit</button>
+        <button class="glt-trow-del" title="Remove tab">&#x2715;</button>
+      `;
+      row.querySelector('.glt-trow-edit').addEventListener('click', (e) => { e.stopPropagation(); openForm(i); });
+      row.querySelector('.glt-trow-name').addEventListener('click', () => openForm(i));
+      row.querySelector('.glt-trow-del').addEventListener('click', (e) => { e.stopPropagation(); workingTabs.splice(i, 1); renderTabsList(); });
+      row.addEventListener('dragstart', (e) => { dragged = row; e.dataTransfer.effectAllowed = 'move'; setTimeout(() => row.classList.add('glt-row--dragging'), 0); });
+      row.addEventListener('dragend', () => { row.classList.remove('glt-row--dragging'); commitOrder(); });
+      row.addEventListener('dragover', (e) => { e.preventDefault(); if (row !== dragged) { listEl.querySelectorAll('.glt-row--over').forEach((r) => r.classList.remove('glt-row--over')); row.classList.add('glt-row--over'); } });
+      row.addEventListener('dragleave', () => row.classList.remove('glt-row--over'));
+      row.addEventListener('drop', (e) => { e.preventDefault(); row.classList.remove('glt-row--over'); if (!dragged || dragged === row) return; const rows = [...listEl.querySelectorAll('.glt-trow')]; const si = rows.indexOf(dragged); const di = rows.indexOf(row); si < di ? row.after(dragged) : row.before(dragged); });
+      listEl.appendChild(row);
+    });
   }
-}
 
-function populateList(container, labels, pinnedMap) {
-  container.innerHTML = '';
-  let dragged = null;
-
-  if (labels.length === 0) {
-    container.innerHTML = '<p class="glt-sp-msg">No user-created labels found.</p>';
-    return;
+  function buildLabelQuery(labelName, includeSub) {
+    if (!includeSub) return `label:"${labelName}"`;
+    const subs = allLabels.filter((l) => l.name === labelName || l.name.startsWith(labelName + '/'));
+    const names = subs.length ? subs.map((l) => l.name) : [labelName];
+    return names.map((n) => `label:"${n}"`).join(' OR ');
   }
 
-  labels.forEach((label) => {
-    const row = document.createElement('div');
-    row.className = 'glt-row';
-    row.draggable = true;
-    row.dataset.id = label.id;
-    row.dataset.name = label.name;
-
-    const checked = pinnedMap.has(label.id);
-    row.innerHTML = `
-      <span class="glt-row-handle" aria-hidden="true" title="Drag to reorder">&#x2807;</span>
-      <label class="glt-row-label">
-        <input type="checkbox" class="glt-row-cb"${checked ? ' checked' : ''}>
-        <span class="glt-row-name">${escHtml(label.name)}</span>
-      </label>
+  function openForm(index) {
+    const editing = index != null;
+    const t = editing ? workingTabs[index] : { type: 'label', name: '', query: '', description: '', fg: '', bg: '', sublabels: false };
+    const labelOpts = allLabels
+      .map((l) => `<option value="${escHtml(l.name)}"${t.labelName === l.name ? ' selected' : ''}>${escHtml(l.name)}</option>`)
+      .join('');
+    formEl.hidden = false;
+    formEl.innerHTML = `
+      <div class="glt-tf-row"><label class="glt-tf-label">Type</label>
+        <select id="glt-tf-type" class="glt-sp-input">
+          <option value="label"${t.type === 'label' ? ' selected' : ''}>Gmail label</option>
+          <option value="query"${t.type === 'query' ? ' selected' : ''}>Search query</option>
+        </select></div>
+      <div class="glt-tf-row" id="glt-tf-labelrow"><label class="glt-tf-label">Label</label>
+        <select id="glt-tf-labelsel" class="glt-sp-input">${labelOpts || '<option value="">(no labels found)</option>'}</select></div>
+      <label class="glt-tf-check" id="glt-tf-subrow"><input type="checkbox" id="glt-tf-sub"${t.sublabels ? ' checked' : ''}> Include sublabels</label>
+      <div class="glt-tf-row" id="glt-tf-queryrow"><label class="glt-tf-label">Query</label>
+        <input id="glt-tf-query" class="glt-sp-input" type="text" placeholder="e.g. has:attachment receipt" value="${escHtml(t.query || '')}"></div>
+      <div class="glt-tf-row"><label class="glt-tf-label">Name</label>
+        <input id="glt-tf-name" class="glt-sp-input" type="text" maxlength="30" value="${escHtml(t.name || '')}"></div>
+      <div class="glt-tf-row"><label class="glt-tf-label">Description</label>
+        <input id="glt-tf-desc" class="glt-sp-input" type="text" maxlength="80" placeholder="Optional tooltip" value="${escHtml(t.description || '')}"></div>
+      <div class="glt-tf-colors">
+        <label class="glt-tf-color">Text <input type="color" id="glt-tf-fg" value="${escHtml(t.fg || '#444746')}"></label>
+        <label class="glt-tf-color">Background <input type="color" id="glt-tf-bg" value="${escHtml(t.bg || '#ffffff')}"></label>
+        <button type="button" class="glt-tf-clear" id="glt-tf-clearcolors">Reset colors</button>
+      </div>
+      <div class="glt-tf-actions">
+        <button class="glt-tf-cancel" id="glt-tf-cancel">Cancel</button>
+        <button class="glt-tf-save" id="glt-tf-save">${editing ? 'Update tab' : 'Add tab'}</button>
+      </div>
+      <p class="glt-pop-err" id="glt-tf-err" style="display:none"></p>
     `;
-
-    row.addEventListener('dragstart', (e) => {
-      dragged = row;
-      e.dataTransfer.effectAllowed = 'move';
-      setTimeout(() => row.classList.add('glt-row--dragging'), 0);
-    });
-    row.addEventListener('dragend', () => {
-      row.classList.remove('glt-row--dragging');
-      container.querySelectorAll('.glt-row--over').forEach((r) => r.classList.remove('glt-row--over'));
-      dragged = null;
-    });
-    row.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if (row !== dragged) {
-        container.querySelectorAll('.glt-row--over').forEach((r) => r.classList.remove('glt-row--over'));
-        row.classList.add('glt-row--over');
+    const typeSel = formEl.querySelector('#glt-tf-type');
+    const labelSel = formEl.querySelector('#glt-tf-labelsel');
+    const nameInput = formEl.querySelector('#glt-tf-name');
+    let fgTouched = !!t.fg, bgTouched = !!t.bg, nameTouched = !!t.name;
+    const syncTypeUI = () => {
+      const isLabel = typeSel.value === 'label';
+      formEl.querySelector('#glt-tf-labelrow').style.display = isLabel ? '' : 'none';
+      formEl.querySelector('#glt-tf-subrow').style.display = isLabel ? '' : 'none';
+      formEl.querySelector('#glt-tf-queryrow').style.display = isLabel ? 'none' : '';
+    };
+    typeSel.addEventListener('change', syncTypeUI);
+    syncTypeUI();
+    labelSel.addEventListener('change', () => { if (!nameTouched) nameInput.value = labelSel.value; });
+    nameInput.addEventListener('input', () => { nameTouched = true; });
+    formEl.querySelector('#glt-tf-fg').addEventListener('input', () => { fgTouched = true; });
+    formEl.querySelector('#glt-tf-bg').addEventListener('input', () => { bgTouched = true; });
+    formEl.querySelector('#glt-tf-clearcolors').addEventListener('click', () => { fgTouched = false; bgTouched = false; });
+    formEl.querySelector('#glt-tf-cancel').addEventListener('click', () => { formEl.hidden = true; formEl.innerHTML = ''; });
+    const showErr = (m) => { const e = formEl.querySelector('#glt-tf-err'); e.textContent = m; e.style.display = 'block'; };
+    formEl.querySelector('#glt-tf-save').addEventListener('click', () => {
+      const type = typeSel.value;
+      let tab;
+      if (type === 'label') {
+        const labelName = labelSel.value;
+        if (!labelName) return showErr('Pick a label.');
+        const sub = formEl.querySelector('#glt-tf-sub').checked;
+        tab = { type: 'label', labelName, sublabels: sub, query: buildLabelQuery(labelName, sub), labelId: (allLabels.find((l) => l.name === labelName) || {}).id };
+      } else {
+        const q = formEl.querySelector('#glt-tf-query').value.trim();
+        if (!q) return showErr('Enter a search query.');
+        tab = { type: 'query', query: q };
       }
+      tab.name = nameInput.value.trim() || (type === 'label' ? labelSel.value : 'Tab');
+      tab.description = formEl.querySelector('#glt-tf-desc').value.trim();
+      if (fgTouched) tab.fg = formEl.querySelector('#glt-tf-fg').value;
+      if (bgTouched) tab.bg = formEl.querySelector('#glt-tf-bg').value;
+      tab.id = editing ? t.id : genId();
+      if (editing) workingTabs[index] = tab; else workingTabs.push(tab);
+      formEl.hidden = true; formEl.innerHTML = '';
+      renderTabsList();
     });
-    row.addEventListener('dragleave', () => row.classList.remove('glt-row--over'));
-    row.addEventListener('drop', (e) => {
-      e.preventDefault();
-      row.classList.remove('glt-row--over');
-      if (!dragged || dragged === row) return;
-      const rows = [...container.querySelectorAll('.glt-row')];
-      const si = rows.indexOf(dragged);
-      const di = rows.indexOf(row);
-      si < di ? row.after(dragged) : row.before(dragged);
-    });
-
-    container.appendChild(row);
-  });
-}
-
-async function handleSave() {
-  const rows = document.querySelectorAll('#glt-sp-list .glt-row');
-  const pinned = [];
-  rows.forEach((row) => {
-    if (row.querySelector('.glt-row-cb')?.checked) {
-      pinned.push({ id: row.dataset.id, name: row.dataset.name });
-    }
-  });
-
-  const newName = (document.getElementById('glt-hold-name')?.value || '').trim() || DEFAULT_HOLD_NAME;
-
-  const saveBtn = document.getElementById('glt-sp-save');
-  saveBtn.disabled = true;
-  saveBtn.textContent = 'Saving…';
-
-  await savePinned(pinned);
-  cachedPinned = pinned;
-
-  if (newName !== holdLabelName) {
-    holdLabelName = newName;
-    await saveHoldLabelName(newName);
-    try {
-      await sendBg({ type: 'SET_HOLD_LABEL_NAME', name: newName });
-    } catch (err) {
-      toast(`Saved, but renaming the Gmail label failed: ${err.message}`, true);
-    }
+    formEl.scrollIntoView({ block: 'nearest' });
   }
 
-  closeSettings();
-  injectBar(pinned);
+  async function onSaveAll() {
+    const saveBtn = panel.querySelector('#glt-sp-save');
+    saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+    const newName = (panel.querySelector('#glt-hold-name')?.value || '').trim() || DEFAULT_HOLD_NAME;
+    workingTabs.forEach((t) => { if (!t.id) t.id = genId(); });
+    await saveTabs(workingTabs);
+    cachedPinned = workingTabs;
+    if (newName !== holdLabelName) {
+      holdLabelName = newName;
+      await saveHoldLabelName(newName);
+      try { await sendBg({ type: 'SET_HOLD_LABEL_NAME', name: newName }); }
+      catch (err) { toast(`Saved, but renaming the Gmail label failed: ${err.message}`, true); }
+    }
+    closeSettings();
+    injectBar(cachedPinned);
+  }
 }
 
 function closeSettings() {
@@ -938,7 +1058,8 @@ function toast(msg, isError = false) {
 
 const debouncedEnsure = debounce(() => {
   if (!isBarVisible()) tryInjectWithRetry();
-  else updateHoldUI();
+  else { updateHoldUI(); ensureNotePanel(); }
+  safeDecorateNoteRows();
 }, 300);
 
 const domObserver = new MutationObserver(debouncedEnsure);
@@ -947,29 +1068,129 @@ window.addEventListener('hashchange', () => {
   updateActiveTab();
   updateHoldUI();
   tryInjectWithRetry();
-  [200, 500, 1000, 1500].forEach((d) => setTimeout(tryInjectWithRetry, d));
+  ensureNotePanel();
+  [200, 500, 1000, 1500].forEach((d) =>
+    setTimeout(() => { tryInjectWithRetry(); ensureNotePanel(); safeDecorateNoteRows(); }, d)
+  );
 });
+
+// ─── Email notes — in-conversation panel + list-row markers ────────────────────
+
+const NOTE_PANEL_ID = 'glt-note';
+
+function noteIcon() {
+  return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M14 3v5h5"></path>
+    <path d="M19 8v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h8z"></path>
+  </svg>`;
+}
+
+function autoGrow(ta) {
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 260) + 'px';
+}
+
+// Inject (or refresh) the note panel for the open conversation.
+function ensureNotePanel() {
+  const convo = getOpenConversation();
+  const existing = document.getElementById(NOTE_PANEL_ID);
+  if (!convo || !convo.threadId) { existing?.remove(); return; }
+  const main = findVisibleMain();
+  if (!main) return;
+  if (existing && existing.dataset.threadId === convo.threadId) return;
+  existing?.remove();
+
+  const panel = document.createElement('div');
+  panel.id = NOTE_PANEL_ID;
+  panel.dataset.threadId = convo.threadId;
+  panel.innerHTML = `
+    <div class="glt-note-head">${noteIcon()}<span>Note</span>
+      <span class="glt-note-status" id="glt-note-status"></span></div>
+    <textarea class="glt-note-ta" id="glt-note-ta"
+      placeholder="Add a private note to this email — only you can see it."></textarea>
+  `;
+  const bar = document.getElementById(BAR_ID);
+  if (bar && bar.parentNode === main) bar.after(panel);
+  else main.prepend(panel);
+
+  const ta = panel.querySelector('#glt-note-ta');
+  const status = panel.querySelector('#glt-note-status');
+  getNote(convo.threadId).then((text) => { ta.value = text; autoGrow(ta); });
+
+  const save = debounce(async () => {
+    try {
+      await saveNote(convo.threadId, ta.value);
+      status.textContent = ta.value.trim() ? 'Saved' : '';
+      safeDecorateNoteRows();
+      setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 1500);
+    } catch {
+      status.textContent = 'Too long to sync';
+    }
+  }, 600);
+
+  ta.addEventListener('input', () => { autoGrow(ta); status.textContent = 'Saving…'; save(); });
+}
+
+// Refresh the open panel if its note changed elsewhere (and it isn't being typed in).
+function refreshOpenNote() {
+  const panel = document.getElementById(NOTE_PANEL_ID);
+  if (!panel) return;
+  const ta = panel.querySelector('#glt-note-ta');
+  if (!ta || document.activeElement === ta) return;
+  getNote(panel.dataset.threadId).then((text) => { ta.value = text; autoGrow(ta); });
+}
+
+// Best-effort marker on list rows whose thread has a note.
+function decorateNoteRows() {
+  const main = findVisibleMain();
+  if (!main) return;
+  main.querySelectorAll('tr.zA').forEach((row) => {
+    const t = getRowThread(row);
+    const has = !!(t && t.threadId && notesIndex.has(t.threadId));
+    let dot = row.querySelector('.glt-note-dot');
+    if (has && !dot) {
+      const host = row.querySelector('.bog') || row.querySelector('.y6');
+      if (host) {
+        dot = document.createElement('span');
+        dot.className = 'glt-note-dot';
+        dot.title = 'Has a note';
+        dot.textContent = '📝';
+        host.prepend(dot);
+      }
+    } else if (!has && dot) {
+      dot.remove();
+    }
+  });
+}
+
+function safeDecorateNoteRows() {
+  try { decorateNoteRows(); } catch { /* Gmail DOM shape varies; non-critical */ }
+}
 
 // ─── Label name reconciliation ────────────────────────────────────────────────
 
-async function reconcileLabelNames(pinned) {
-  if (pinned.length === 0) return pinned;
+// Keep plain label tabs pointing at the right label if it was renamed in Gmail.
+async function reconcileTabs(tabs) {
+  if (!tabs.length) return tabs;
   try {
     const allLabels = await fetchUserLabels();
     const nameById = new Map(allLabels.map((l) => [l.id, l.name]));
     let changed = false;
-    const updated = pinned.map((p) => {
-      const freshName = nameById.get(p.id);
-      if (freshName && freshName !== p.name) {
-        changed = true;
-        return { ...p, name: freshName };
+    const updated = tabs.map((t) => {
+      if (t.type === 'label' && t.labelId && !t.sublabels) {
+        const fresh = nameById.get(t.labelId);
+        if (fresh && fresh !== t.labelName) {
+          changed = true;
+          return { ...t, labelName: fresh, query: `label:"${fresh}"` };
+        }
       }
-      return p;
+      return t;
     });
-    if (changed) await savePinned(updated);
+    if (changed) await saveTabs(updated);
     return updated;
   } catch {
-    return pinned;
+    return tabs;
   }
 }
 
@@ -978,7 +1199,8 @@ async function reconcileLabelNames(pinned) {
 async function init() {
   holdLabelName = await loadHoldLabelName();
   customDurations = await loadCustomDurations();
-  cachedPinned = await reconcileLabelNames(await loadPinned());
+  cachedPinned = await reconcileTabs(await loadTabs());
+  await loadNotesIndex();
   refreshHolds();
   setupRowHoldHover();
 
@@ -997,13 +1219,23 @@ async function init() {
   }
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'sync' && changes.pinnedLabels) {
-      cachedPinned = changes.pinnedLabels.newValue || [];
+    if (area === 'sync' && changes.tabs) {
+      cachedPinned = changes.tabs.newValue || [];
       injectBar(cachedPinned);
     }
     if (area === 'sync' && changes.holdLabelName) {
       holdLabelName = changes.holdLabelName.newValue || DEFAULT_HOLD_NAME;
       updateHoldUI();
+    }
+    if (area === 'sync' && Object.keys(changes).some((k) => k.startsWith(NOTE_PREFIX))) {
+      Object.keys(changes).forEach((k) => {
+        if (!k.startsWith(NOTE_PREFIX)) return;
+        const id = k.slice(NOTE_PREFIX.length);
+        if (changes[k].newValue == null) notesIndex.delete(id);
+        else notesIndex.add(id);
+      });
+      safeDecorateNoteRows();
+      refreshOpenNote();
     }
     if (area === 'local' && changes.customDurations) {
       customDurations = changes.customDurations.newValue || [];

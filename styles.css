@@ -703,3 +703,77 @@
   background: #8ab4f8;
   cursor: default;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Tabs v2 (colors, query tabs, tab manager) + Email notes
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.glt-tab--colored { border-radius: 6px 6px 0 0; }
+
+/* ── Settings: scroll area + sections ── */
+.glt-sp-scroll { flex: 1; overflow-y: auto; }
+.glt-sp-scroll .glt-sp-list { flex: none; overflow: visible; }
+
+.glt-sp-sechead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px 0; font-size: 14px; font-weight: 600; color: #202124;
+}
+.glt-sp-add {
+  all: unset; cursor: pointer; font-size: 13px; font-weight: 500; color: #1a73e8;
+  padding: 6px 10px; border-radius: 6px;
+}
+.glt-sp-add:hover { background: #e8f0fe; }
+
+/* ── Tab rows in the manager ── */
+.glt-trow { gap: 10px; cursor: default; }
+.glt-trow-swatch {
+  width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600; border: 1px solid rgba(0,0,0,.12);
+}
+.glt-trow-name {
+  flex: 1; min-width: 0; font-size: 14px; color: #202124; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.glt-trow-type {
+  font-size: 11px; color: #5f6368; background: #f1f3f4; padding: 2px 7px;
+  border-radius: 10px; flex-shrink: 0;
+}
+.glt-trow-edit { all: unset; cursor: pointer; font-size: 13px; color: #1a73e8; padding: 4px 8px; border-radius: 6px; flex-shrink: 0; }
+.glt-trow-edit:hover { background: #e8f0fe; }
+.glt-trow-del { all: unset; cursor: pointer; color: #5f6368; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; }
+.glt-trow-del:hover { background: #f1f3f4; color: #c5221f; }
+
+/* ── Tab add/edit form ── */
+.glt-tabform { margin: 8px 16px 4px; padding: 14px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 10px; }
+.glt-tf-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.glt-tf-label { width: 92px; flex-shrink: 0; font-size: 13px; color: #5f6368; }
+.glt-tf-row .glt-sp-input { flex: 1; min-width: 0; }
+.glt-tf-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #202124; margin: -2px 0 10px 102px; }
+.glt-tf-colors { display: flex; align-items: center; gap: 14px; margin: 4px 0 12px; flex-wrap: wrap; }
+.glt-tf-color { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #5f6368; }
+.glt-tf-color input[type=color] { width: 34px; height: 26px; border: 1px solid #dadce0; border-radius: 6px; background: none; cursor: pointer; padding: 0; }
+.glt-tf-clear { all: unset; cursor: pointer; font-size: 12px; color: #1a73e8; }
+.glt-tf-clear:hover { text-decoration: underline; }
+.glt-tf-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.glt-tf-cancel { all: unset; cursor: pointer; font-size: 13px; font-weight: 500; color: #5f6368; padding: 8px 14px; border-radius: 8px; }
+.glt-tf-cancel:hover { background: #f1f3f4; }
+.glt-tf-save { all: unset; cursor: pointer; font-size: 13px; font-weight: 500; color: #fff; background: #1a73e8; padding: 8px 16px; border-radius: 8px; }
+.glt-tf-save:hover { background: #1765cc; }
+
+/* ── In-conversation note panel ── */
+#glt-note {
+  background: #fffbe6; border-bottom: 1px solid #f0e6c0; padding: 10px 20px 12px;
+  font-family: 'Google Sans', Roboto, Arial, sans-serif;
+}
+.glt-note-head { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #8a6d00; margin-bottom: 6px; }
+.glt-note-status { margin-left: 8px; font-weight: 400; color: #80868b; font-size: 11px; }
+.glt-note-ta {
+  width: 100%; box-sizing: border-box; min-height: 38px; resize: none;
+  border: 1px solid #ecdca0; border-radius: 8px; padding: 8px 10px;
+  font-family: inherit; font-size: 13px; color: #202124; background: #fff; line-height: 1.5;
+}
+.glt-note-ta:focus { outline: none; border-color: #f9ab00; box-shadow: 0 0 0 1px #f9ab00; }
+
+/* ── Note marker on list rows ── */
+.glt-note-dot { margin-right: 5px; font-size: 11px; vertical-align: middle; }
