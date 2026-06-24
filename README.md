@@ -1,4 +1,4 @@
-# Inbox Organizer
+# Gmail Genie
 
 A Chrome extension (Manifest V3) that turns Gmail labels and saved searches into a sticky tab bar, lets you add private notes to emails, and includes a **Hold** feature that snoozes emails out of the inbox and brings them back on a timer.
 

@@ -9,7 +9,7 @@ bracketed placeholders before submitting.
 Lazo Labs — contact: info@lazolabs.app
 
 ## Name
-Inbox Organizer
+Gmail Genie
 
 ## Summary (short description — max 132 characters)
 Pinned label tabs for Gmail, plus Hold: snooze emails out of your inbox and have
@@ -19,13 +19,13 @@ them return on a timer.
 Productivity / Workflow & Planning
 
 ## Detailed description
-Inbox Organizer makes Gmail faster in two ways: it turns your labels into one‑click
+Gmail Genie makes Gmail faster in two ways: it turns your labels into one‑click
 tabs, and it lets you put emails on hold so they leave your inbox now and come back
 exactly when you can deal with them.
 
 If you live in Gmail, two things slow you down every day — hunting through the
 label sidebar, and emails you can't act on yet sitting in your inbox nagging you.
-Inbox Organizer fixes both.
+Gmail Genie fixes both.
 
 GET TO ANY LABEL IN ONE CLICK
 Pin your most‑used labels as tabs across the top of Gmail (Inbox is always first),
@@ -49,7 +49,7 @@ WHY YOU'LL WANT IT
 • Peace of mind that held email always comes back on schedule.
 
 PRIVATE BY DESIGN
-Inbox Organizer runs entirely in your browser and your own Google account. No
+Gmail Genie runs entirely in your browser and your own Google account. No
 analytics, no tracking, nothing sent to us, nothing sold. It only reads your label
 list and the limited thread details needed to hold and return the emails you
 choose — it never reads your email content and never sends mail.

@@ -1,8 +1,8 @@
-# Privacy Policy — Inbox Organizer
+# Privacy Policy — Gmail Genie
 
 _Last updated: 2026-06-22_
 
-Inbox Organizer ("the extension"), published by **Lazo Labs**, is a browser
+Gmail Genie ("the extension"), published by **Lazo Labs**, is a browser
 extension that adds a label tab bar and a "Hold" (snooze) feature inside Gmail.
 This policy explains exactly what data the extension accesses, how it is used,
 and where it is stored.
