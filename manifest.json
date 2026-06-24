@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Gmail Label Tabs",
+  "name": "Inbox Organizer",
   "version": "1.2",
   "description": "Pinned label tabs for Gmail, plus a Hold feature that snoozes emails out of the inbox and returns them after a timer.",
 
@@ -46,7 +46,7 @@
 
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Gmail Label Tabs",
+    "default_title": "Inbox Organizer",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

@@ -1,4 +1,4 @@
-# Gmail Label Tabs
+# Inbox Organizer
 
 A Chrome extension (Manifest V3) that adds a sticky tab bar inside Gmail for instant label navigation, plus a **Hold** feature that snoozes emails out of the inbox and brings them back on a timer.
 

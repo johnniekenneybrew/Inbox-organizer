@@ -9,7 +9,7 @@ bracketed placeholders before submitting.
 Lazo Labs — contact: info@lazolabs.app
 
 ## Name
-Gmail Label Tabs
+Inbox Organizer
 
 ## Summary (short description — max 132 characters)
 Pinned label tabs for Gmail, plus Hold: snooze emails out of your inbox and have
@@ -19,7 +19,7 @@ them return on a timer.
 Productivity / Workflow & Planning
 
 ## Detailed description
-Gmail Label Tabs adds a clean tab bar to the top of Gmail so you can jump between
+Inbox Organizer adds a clean tab bar to the top of Gmail so you can jump between
 your labels in one click — and a built‑in Hold (snooze) feature so emails leave
 your inbox now and come back exactly when you want.
 
