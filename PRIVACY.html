@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy — Inbox Organizer | Lazo Labs</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      color: #1f2937;
+      line-height: 1.65;
+      background: #f8fafc;
+    }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-size: 28px; margin: 0 0 4px; }
+    h2 { font-size: 19px; margin: 36px 0 10px; }
+    .updated { color: #64748b; font-size: 14px; margin: 0 0 28px; }
+    .lede {
+      background: #eef2ff; border: 1px solid #e0e7ff; border-radius: 12px;
+      padding: 16px 18px; font-weight: 500;
+    }
+    a { color: #4f46e5; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; }
+    code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+    footer { margin-top: 48px; color: #64748b; font-size: 13px; border-top: 1px solid #e2e8f0; padding-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Privacy Policy — Inbox Organizer</h1>
+    <p class="updated">Published by Lazo Labs · Last updated: 2026-06-24</p>
+
+    <p class="lede">
+      Inbox Organizer runs entirely in your browser and your own Google account.
+      It does not send your data to Lazo Labs or to any third-party server. There
+      are no analytics, no tracking, and nothing is ever sold.
+    </p>
+
+    <p>Inbox Organizer ("the extension") is a browser extension that adds a label
+      tab bar and a "Hold" (snooze) feature inside Gmail. This policy explains
+      exactly what data the extension accesses, how it is used, and where it is
+      stored.</p>
+
+    <h2>Who operates this extension</h2>
+    <p>This extension is published by <strong>Lazo Labs</strong>. For privacy
+      questions, contact <a href="mailto:info@lazolabs.app">info@lazolabs.app</a>.</p>
+
+    <h2>What the extension accesses</h2>
+    <p>The extension uses the Gmail API with the following OAuth scopes:</p>
+    <ul>
+      <li><strong><code>gmail.labels</code></strong> — to read the list of your
+        Gmail labels (names and IDs) so it can show them as tabs, and to
+        create/rename the "Hold" label.</li>
+      <li><strong><code>gmail.modify</code></strong> — to put an email on Hold and
+        bring it back. It adds/removes labels on threads you explicitly act on
+        (removing <code>INBOX</code> to archive, adding the <code>Hold</code>
+        label, and later re-adding <code>INBOX</code>/<code>UNREAD</code>). To
+        support Hold it also reads limited thread metadata for threads you hold —
+        the subject line, a short snippet, and the number of messages in the
+        thread (used to detect whether a reply arrived).</li>
+    </ul>
+    <p>The extension does <strong>not</strong> read the full content of your
+      emails, does <strong>not</strong> send email, and does <strong>not</strong>
+      access threads other than the ones you choose to hold.</p>
+
+    <h2>What the extension stores, and where</h2>
+    <p>All data is stored using Chrome's built-in <code>chrome.storage</code>,
+      which lives in your browser / your Google account sync — never on a server
+      controlled by Lazo Labs:</p>
+    <table>
+      <tr><th>Data</th><th>Where</th><th>Purpose</th></tr>
+      <tr><td>Pinned label list (id + name)</td><td><code>storage.sync</code></td><td>Which labels appear as tabs</td></tr>
+      <tr><td>Hold label name</td><td><code>storage.sync</code></td><td>Your custom name for the Hold tab/label</td></tr>
+      <tr><td>Held threads (thread ID, subject, snippet, return time, baseline message count)</td><td><code>storage.local</code></td><td>To return held emails on time and detect replies</td></tr>
+      <tr><td>Saved custom durations</td><td><code>storage.local</code></td><td>Your reusable "Hold for…" presets</td></tr>
+      <tr><td>Cached Hold label ID</td><td><code>storage.local</code></td><td>Performance</td></tr>
+      <tr><td>OAuth token</td><td>Managed by Chrome (<code>chrome.identity</code>)</td><td>Authenticating Gmail API calls</td></tr>
+    </table>
+
+    <h2>How the data is used</h2>
+    <p>Data is used <strong>only</strong> to provide the extension's features
+      (label tabs and Hold) on your own device. The extension's use of information
+      received from Google APIs adheres to the
+      <a href="https://developers.google.com/terms/api-services-user-data-policy">Google
+      API Services User Data Policy</a>, including the <strong>Limited Use</strong>
+      requirements. In particular:</p>
+    <ul>
+      <li>We do <strong>not</strong> transfer or sell this data to third parties.</li>
+      <li>We do <strong>not</strong> use this data for advertising.</li>
+      <li>We do <strong>not</strong> allow humans to read this data, except as
+        needed for security, to comply with law, or with your explicit consent.</li>
+      <li>We use and transfer this data only to provide and improve the
+        extension's user-facing features.</li>
+    </ul>
+
+    <h2>Data sharing</h2>
+    <p>None. No data leaves your browser/Google account except the direct API
+      calls your browser makes to Google's Gmail API on your behalf.</p>
+
+    <h2>Data retention and deletion</h2>
+    <ul>
+      <li>Extension settings and hold records live in <code>chrome.storage</code>.
+        Uninstalling the extension removes its local data.</li>
+      <li>You can clear pending holds at any time using the extension's "Return
+        now" / cancel controls.</li>
+      <li>Any labels created in Gmail (e.g. the <code>Hold</code> label) remain in
+        your Gmail account until you delete them in Gmail, and are under your
+        control.</li>
+      <li>You can revoke the extension's access at any time at
+        <a href="https://myaccount.google.com/connections">Google Account →
+        Security → Third-party access</a>.</li>
+    </ul>
+
+    <h2>Children</h2>
+    <p>This extension is not directed to children under 13.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If this policy changes, the updated version will be posted at this URL with
+      a new "Last updated" date.</p>
+
+    <footer>© Lazo Labs · info@lazolabs.app</footer>
+  </div>
+</body>
+</html>
