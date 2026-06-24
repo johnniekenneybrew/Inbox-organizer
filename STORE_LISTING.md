@@ -5,6 +5,9 @@ bracketed placeholders before submitting.
 
 ---
 
+## Publisher
+Lazo Labs — contact: info@lazolabs.app
+
 ## Name
 Gmail Label Tabs
 
@@ -41,7 +44,7 @@ PRIVACY
 • Runs entirely in your browser and your own Google account.
 • No analytics, no tracking, nothing sent to the developer, nothing sold.
 • Only reads label data and the limited thread info needed to hold/return the
-  emails you choose. Full privacy policy: [your-privacy-policy-URL]
+  emails you choose. Full privacy policy: https://github.com/johnniekenneybrew/Inbox-organizer/blob/main/PRIVACY.md
 
 ## Single purpose (required)
 The single purpose of this extension is to help users navigate Gmail labels and
@@ -89,4 +92,4 @@ No. The extension contains no remote code; all logic ships in the package.
 - Complies with the Google API Services User Data Policy (Limited Use).
 
 ## Privacy policy URL
-[your-privacy-policy-URL]  (e.g. the raw/Pages URL of PRIVACY.md in this repo)
+https://github.com/johnniekenneybrew/Inbox-organizer/blob/main/PRIVACY.md  (e.g. the raw/Pages URL of PRIVACY.md in this repo)

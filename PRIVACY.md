@@ -2,9 +2,10 @@
 
 _Last updated: 2026-06-22_
 
-Gmail Label Tabs ("the extension") is a browser extension that adds a label tab
-bar and a "Hold" (snooze) feature inside Gmail. This policy explains exactly what
-data the extension accesses, how it is used, and where it is stored.
+Gmail Label Tabs ("the extension"), published by **Lazo Labs**, is a browser
+extension that adds a label tab bar and a "Hold" (snooze) feature inside Gmail.
+This policy explains exactly what data the extension accesses, how it is used,
+and where it is stored.
 
 **Summary: the extension runs entirely in your browser and your own Google
 account. It does not send your data to the developer or to any third‑party
@@ -12,8 +13,8 @@ server. There are no analytics, no tracking, and nothing is ever sold.**
 
 ## Who operates this extension
 
-This extension is provided by the developer listed on its Chrome Web Store
-listing. For privacy questions, contact: **[your-contact-email]**.
+This extension is published by **Lazo Labs**. For privacy questions, contact:
+**info@lazolabs.app**.
 
 ## What the extension accesses
 
