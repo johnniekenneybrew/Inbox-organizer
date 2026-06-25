@@ -775,5 +775,35 @@
 }
 .glt-note-ta:focus { outline: none; border-color: #f9ab00; box-shadow: 0 0 0 1px #f9ab00; }
 
-/* ── Note marker on list rows ── */
-.glt-note-dot { margin-right: 5px; font-size: 11px; vertical-align: middle; }
+/* ── Sticky-note marker on list rows ── */
+.glt-note-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-right: 6px; vertical-align: middle; cursor: pointer;
+  line-height: 0; border-radius: 5px; padding: 1px;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.15));
+}
+.glt-note-chip:hover { background: rgba(249,171,0,.20); }
+
+/* ── Inline note quick-editor (opened from a list row) ── */
+#glt-rnote {
+  position: fixed; z-index: 9999; display: none;
+  width: 320px; max-width: calc(100vw - 16px);
+  background: #fffbe6; border: 1px solid #f0e6c0; border-radius: 10px;
+  box-shadow: 0 6px 22px rgba(0,0,0,.22);
+  padding: 10px 12px 12px; font-family: 'Google Sans', Roboto, Arial, sans-serif;
+}
+#glt-rnote.show { display: block; }
+.glt-rnote-head { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #8a6d00; margin-bottom: 7px; }
+.glt-rnote-status { margin-left: 6px; font-weight: 400; color: #80868b; font-size: 11px; }
+.glt-rnote-x {
+  all: unset; cursor: pointer; margin-left: auto; color: #8a6d00;
+  width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; font-size: 13px;
+}
+.glt-rnote-x:hover { background: rgba(249,171,0,.22); }
+.glt-rnote-ta {
+  width: 100%; box-sizing: border-box; min-height: 90px; resize: vertical;
+  border: 1px solid #ecdca0; border-radius: 8px; padding: 8px 10px;
+  font-family: inherit; font-size: 13px; color: #202124; background: #fff; line-height: 1.5;
+}
+.glt-rnote-ta:focus { outline: none; border-color: #f9ab00; box-shadow: 0 0 0 1px #f9ab00; }

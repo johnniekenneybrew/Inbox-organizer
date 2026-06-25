@@ -1077,14 +1077,21 @@ window.addEventListener('hashchange', () => {
 // ─── Email notes — in-conversation panel + list-row markers ────────────────────
 
 const NOTE_PANEL_ID = 'glt-note';
+const ROW_NOTE_ID   = 'glt-rnote';
 
-function noteIcon() {
-  return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M14 3v5h5"></path>
-    <path d="M19 8v11a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h8z"></path>
+// Yellow sticky note (folded corner + two text lines). Used on list rows and the panel head.
+function stickyNoteIcon(size = 18) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M5 3h14a1 1 0 0 1 1 1v9.5L13.5 20H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"
+      fill="#ffd64a" stroke="#e6a900" stroke-width="1.1"></path>
+    <path d="M13.5 20v-5.5a1 1 0 0 1 1-1H20"
+      fill="#ffe896" stroke="#e6a900" stroke-width="1.1" stroke-linejoin="round"></path>
+    <line x1="7.4" y1="8" x2="15.6" y2="8" stroke="#a9780b" stroke-width="1.3" stroke-linecap="round"></line>
+    <line x1="7.4" y1="11" x2="13" y2="11" stroke="#a9780b" stroke-width="1.3" stroke-linecap="round"></line>
   </svg>`;
 }
+
+function noteIcon() { return stickyNoteIcon(15); }
 
 function autoGrow(ta) {
   ta.style.height = 'auto';
@@ -1141,31 +1148,119 @@ function refreshOpenNote() {
   getNote(panel.dataset.threadId).then((text) => { ta.value = text; autoGrow(ta); });
 }
 
-// Best-effort marker on list rows whose thread has a note.
+// Best-effort sticky-note marker on list rows whose thread has a note.
+// Clicking it opens an inline editor — no need to open the email.
 function decorateNoteRows() {
   const main = findVisibleMain();
   if (!main) return;
   main.querySelectorAll('tr.zA').forEach((row) => {
     const t = getRowThread(row);
     const has = !!(t && t.threadId && notesIndex.has(t.threadId));
-    let dot = row.querySelector('.glt-note-dot');
-    if (has && !dot) {
+    let chip = row.querySelector('.glt-note-chip');
+    if (has && !chip) {
       const host = row.querySelector('.bog') || row.querySelector('.y6');
       if (host) {
-        dot = document.createElement('span');
-        dot.className = 'glt-note-dot';
-        dot.title = 'Has a note';
-        dot.textContent = '📝';
-        host.prepend(dot);
+        chip = document.createElement('span');
+        chip.className = 'glt-note-chip';
+        chip.title = 'View note';
+        chip.dataset.threadId = t.threadId;
+        chip.innerHTML = stickyNoteIcon(18);
+        // Don't let the click bubble to Gmail's row handler (which would open the email).
+        chip.addEventListener('mousedown', (e) => e.stopPropagation());
+        chip.addEventListener('click', (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const r = chip.closest('tr.zA');
+          const meta = r ? getRowThread(r) : null;
+          openRowNotePopover(chip, (meta && meta.threadId) || chip.dataset.threadId);
+        });
+        host.prepend(chip);
       }
-    } else if (!has && dot) {
-      dot.remove();
+    } else if (has && chip) {
+      chip.dataset.threadId = t.threadId; // keep fresh across Gmail row recycling
+    } else if (!has && chip) {
+      chip.remove();
     }
   });
 }
 
 function safeDecorateNoteRows() {
   try { decorateNoteRows(); } catch { /* Gmail DOM shape varies; non-critical */ }
+}
+
+// ─── Inline note quick-editor (from list rows) ────────────────────────────────
+
+let rowNoteThreadId = null;
+
+function ensureRowNotePop() {
+  let pop = document.getElementById(ROW_NOTE_ID);
+  if (pop) return pop;
+
+  pop = document.createElement('div');
+  pop.id = ROW_NOTE_ID;
+  pop.innerHTML = `
+    <div class="glt-rnote-head">${stickyNoteIcon(15)}<span>Note</span>
+      <span class="glt-rnote-status"></span>
+      <button class="glt-rnote-x" title="Close" aria-label="Close">&#x2715;</button></div>
+    <textarea class="glt-rnote-ta"
+      placeholder="Add a private note to this email — only you can see it."></textarea>`;
+  document.body.appendChild(pop);
+
+  const ta = pop.querySelector('.glt-rnote-ta');
+  const status = pop.querySelector('.glt-rnote-status');
+  const save = debounce(async () => {
+    if (!rowNoteThreadId) return;
+    try {
+      await saveNote(rowNoteThreadId, ta.value);
+      status.textContent = ta.value.trim() ? 'Saved' : '';
+      safeDecorateNoteRows();
+      refreshOpenNote();
+      setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 1500);
+    } catch {
+      status.textContent = 'Too long to sync';
+    }
+  }, 600);
+
+  ta.addEventListener('input', () => { status.textContent = 'Saving…'; save(); });
+  ta.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeRowNotePop(); });
+  pop.querySelector('.glt-rnote-x').addEventListener('click', closeRowNotePop);
+  pop.addEventListener('mousedown', (e) => e.stopPropagation());
+
+  // Click outside closes it.
+  document.addEventListener('mousedown', (e) => {
+    if (!pop.classList.contains('show')) return;
+    if (pop.contains(e.target) || e.target.closest?.('.glt-note-chip')) return;
+    closeRowNotePop();
+  });
+  return pop;
+}
+
+function openRowNotePopover(anchorEl, threadId) {
+  if (!threadId) return;
+  const pop = ensureRowNotePop();
+  rowNoteThreadId = threadId;
+  const ta = pop.querySelector('.glt-rnote-ta');
+  pop.querySelector('.glt-rnote-status').textContent = '';
+  ta.value = '';
+  getNote(threadId).then((text) => { ta.value = text; });
+
+  pop.classList.add('show');
+  const r = anchorEl.getBoundingClientRect();
+  const pw = pop.offsetWidth || 320;
+  const ph = pop.offsetHeight || 150;
+  let left = r.left;
+  let top = r.bottom + 6;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  if (top + ph > window.innerHeight - 8) top = r.top - ph - 6;
+  pop.style.left = Math.max(8, left) + 'px';
+  pop.style.top = Math.max(8, top) + 'px';
+  setTimeout(() => ta.focus(), 0);
+}
+
+function closeRowNotePop() {
+  const pop = document.getElementById(ROW_NOTE_ID);
+  if (pop) pop.classList.remove('show');
+  rowNoteThreadId = null;
 }
 
 // ─── Label name reconciliation ────────────────────────────────────────────────
