@@ -412,20 +412,20 @@ function updateHoldUI() {
       const held = threadIsHeld(convo.threadId);
       action.dataset.scope = 'one';
       action.dataset.mode = held ? 'return' : 'hold';
-      label.textContent = held ? 'Return now' : 'Hold';
+      label.textContent = held ? 'Return now' : holdLabelName;
       action.title = held
         ? 'Return this email to the inbox now (marked unread)'
-        : 'Hold this email — return it to the inbox after a timer';
+        : `${holdLabelName} this email — return it to the inbox after a timer`;
     } else if (selected.length) {
       // One or more checkbox-selected rows — act on all of them.
       action.style.display = '';
       const ret = isCurrentViewHold();
       action.dataset.scope = 'bulk';
       action.dataset.mode = ret ? 'return' : 'hold';
-      label.textContent = `${ret ? 'Return now' : 'Hold'} (${selected.length})`;
+      label.textContent = `${ret ? 'Return now' : holdLabelName} (${selected.length})`;
       action.title = ret
         ? `Return ${selected.length} selected email(s) to the inbox`
-        : `Hold ${selected.length} selected email(s)`;
+        : `${holdLabelName} ${selected.length} selected email(s)`;
     } else {
       action.style.display = 'none';
     }
@@ -750,8 +750,8 @@ function setupRowHoldHover() {
     target = t;
     const returnMode = isCurrentViewHold();
     btn.dataset.mode = returnMode ? 'return' : 'hold';
-    btn.querySelector('.glt-row-hold-label').textContent = returnMode ? 'Return now' : 'Hold';
-    btn.title = returnMode ? 'Return this email to the inbox now' : 'Hold this email';
+    btn.querySelector('.glt-row-hold-label').textContent = returnMode ? 'Return now' : holdLabelName;
+    btn.title = returnMode ? 'Return this email to the inbox now' : `${holdLabelName} this email`;
     const r = row.getBoundingClientRect();
     btn.style.display = 'inline-flex';
     btn.style.top = `${r.top + r.height / 2 - btn.offsetHeight / 2}px`;
