@@ -124,6 +124,41 @@
 
     .glt-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 95; background: #202124; color: #fff; font-size: 13px; padding: 12px 20px; border-radius: 8px; box-shadow: 0 3px 5px rgba(0,0,0,.2); display: none; }
     .glt-toast.show { display: block; }
+    /* Settings (tab manager) modal */
+    .sx-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.38); z-index: 90; display: none; }
+    .sx-overlay.show { display: block; }
+    .sx-panel { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 470px; max-width: calc(100vw - 32px); max-height: 88vh; background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.28); display: flex; flex-direction: column; }
+    .sx-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid #e0e0e0; }
+    .sx-head h2 { font-size: 18px; font-weight: 500; color: #202124; margin: 0; }
+    .sx-x { all: unset; cursor: pointer; color: #5f6368; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+    .sx-scroll { overflow-y: auto; padding-bottom: 6px; }
+    .sx-field { display: flex; flex-direction: column; gap: 6px; padding: 16px 24px 4px; }
+    .sx-field > label { font-size: 13px; font-weight: 500; color: #202124; }
+    .sx-field input, .sx-frow input, .sx-frow select { font-family: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid #dadce0; border-radius: 8px; color: #202124; background: #fff; }
+    .sx-sechead { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px 0; font-size: 14px; font-weight: 600; color: #202124; }
+    .sx-add { all: unset; cursor: pointer; font-size: 13px; font-weight: 500; color: #1a73e8; padding: 6px 10px; border-radius: 6px; }
+    .sx-hint { margin: 4px 24px 6px; font-size: 13px; color: #5f6368; }
+    .sx-list { padding: 0 12px; }
+    .sx-trow { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; }
+    .sx-h { color: #bdc1c6; }
+    .sx-sw { width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; border: 1px solid rgba(0,0,0,.12); flex-shrink: 0; }
+    .sx-name { flex: 1; font-size: 14px; color: #202124; }
+    .sx-type { font-size: 11px; color: #5f6368; background: #f1f3f4; padding: 2px 7px; border-radius: 10px; }
+    .sx-edit { all: unset; cursor: pointer; font-size: 13px; color: #1a73e8; padding: 4px 8px; border-radius: 6px; }
+    .sx-del { all: unset; cursor: pointer; color: #5f6368; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; }
+    .sx-form { margin: 8px 16px 4px; padding: 14px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 10px; }
+    .sx-frow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .sx-frow > label { width: 92px; flex-shrink: 0; font-size: 13px; color: #5f6368; }
+    .sx-frow input, .sx-frow select { flex: 1; min-width: 0; }
+    .sx-colors { display: flex; align-items: center; gap: 14px; margin: 4px 0 12px; flex-wrap: wrap; font-size: 13px; color: #5f6368; }
+    .sx-colors > label { display: inline-flex; align-items: center; gap: 6px; }
+    .sx-colors input[type=color] { width: 34px; height: 26px; border: 1px solid #dadce0; border-radius: 6px; padding: 0; background: none; cursor: pointer; }
+    .sx-clear { all: unset; cursor: pointer; font-size: 12px; color: #1a73e8; }
+    .sx-actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .sx-cancel { all: unset; cursor: pointer; font-size: 13px; font-weight: 500; color: #5f6368; padding: 8px 14px; border-radius: 8px; }
+    .sx-save { all: unset; cursor: pointer; font-size: 13px; font-weight: 500; color: #fff; background: #1a73e8; padding: 8px 16px; border-radius: 8px; }
+    .sx-foot { padding: 14px 24px; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end; }
+    .sx-savefull { all: unset; cursor: pointer; font-size: 14px; font-weight: 500; color: #fff; background: #1a73e8; padding: 10px 22px; border-radius: 8px; }
   </style>
 </head>
 <body>
@@ -153,8 +188,9 @@
     <div class="main">
       <div class="glt-bar" id="glt-bar">
         <button class="glt-tab active" data-tab="INBOX">Inbox</button>
-        <button class="glt-tab" data-tab="Follow Up">Follow Up</button>
-        <button class="glt-tab" data-tab="To Do">To Do</button>
+        <button class="glt-tab" data-tab="Follow Up" style="color:#fff;background:#1a73e8;border-radius:6px 6px 0 0">Follow Up</button>
+        <button class="glt-tab" data-tab="To Do" style="color:#d93025;background:#fce8e6;border-radius:6px 6px 0 0">To Do</button>
+        <button class="glt-tab" data-tab="Receipts" title="has:attachment receipt" style="color:#188038;background:#e6f4ea;border-radius:6px 6px 0 0">Receipts</button>
         <div class="glt-right">
           <button class="glt-hold" id="glt-hold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span class="glt-hold-label">Hold</span></button>
           <button class="glt-hold-tab" id="glt-hold-tab"><span class="glt-hold-tab-label">Hold</span><span class="glt-hold-tab-count" id="glt-hold-tab-count"></span></button>
@@ -203,6 +239,36 @@
 
   <button class="glt-row-hold" id="glt-row-hold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span class="glt-row-hold-label">Hold</span></button>
   <div class="glt-row-when" id="glt-row-when"></div>
+
+  <!-- Settings (tab manager) modal -->
+  <div class="sx-overlay" id="sx-overlay">
+    <div class="sx-panel">
+      <div class="sx-head"><h2>Settings</h2><button class="sx-x">&#x2715;</button></div>
+      <div class="sx-scroll">
+        <div class="sx-field"><label>Hold tab &amp; label name</label><input value="Hold"></div>
+        <div class="sx-sechead"><span>Tabs</span><button class="sx-add">+ Add tab</button></div>
+        <p class="sx-hint">Add a Gmail label or a saved search as a tab. Drag to reorder; click a tab to edit.</p>
+        <div class="sx-list">
+          <div class="sx-trow"><span class="sx-h">&#x2807;</span><span class="sx-sw" style="background:#1a73e8;color:#fff">F</span><span class="sx-name">Follow Up</span><span class="sx-type">label</span><button class="sx-edit">Edit</button><button class="sx-del">&#x2715;</button></div>
+          <div class="sx-trow"><span class="sx-h">&#x2807;</span><span class="sx-sw" style="background:#fce8e6;color:#d93025">T</span><span class="sx-name">To Do</span><span class="sx-type">label + sub</span><button class="sx-edit">Edit</button><button class="sx-del">&#x2715;</button></div>
+          <div class="sx-trow"><span class="sx-h">&#x2807;</span><span class="sx-sw" style="background:#e6f4ea;color:#188038">R</span><span class="sx-name">Receipts</span><span class="sx-type">query</span><button class="sx-edit">Edit</button><button class="sx-del">&#x2715;</button></div>
+        </div>
+        <div class="sx-form">
+          <div class="sx-frow"><label>Type</label><select><option selected>Search query</option><option>Gmail label</option></select></div>
+          <div class="sx-frow"><label>Query</label><input value="has:attachment receipt"></div>
+          <div class="sx-frow"><label>Name</label><input value="Receipts"></div>
+          <div class="sx-frow"><label>Description</label><input value="Receipts with attachments"></div>
+          <div class="sx-colors">
+            <label>Text <input type="color" value="#188038"></label>
+            <label>Background <input type="color" value="#e6f4ea"></label>
+            <button class="sx-clear">Reset colors</button>
+          </div>
+          <div class="sx-actions"><button class="sx-cancel">Cancel</button><button class="sx-save">Update tab</button></div>
+        </div>
+      </div>
+      <div class="sx-foot"><button class="sx-savefull">Save</button></div>
+    </div>
+  </div>
   <div class="glt-toast" id="glt-toast"></div>
 
   <script>
@@ -420,7 +486,10 @@
       hoverReturn(id) { const row = document.querySelector(`.email-row[data-id="${id}"]`); if (row) showRowBtn(row); },
       openHeld(id) { switchTab('Hold'); openConversation(id); },
       selectRows(ids) { ids.forEach(id => selected.add(id)); renderList(); updateBar(); },
+      openSettings() { document.getElementById('sx-overlay').classList.add('show'); },
+      closeSettings() { document.getElementById('sx-overlay').classList.remove('show'); },
     };
+    document.querySelector('.glt-gear').addEventListener('click', () => window.__demo.openSettings());
   </script>
 </body>
 </html>

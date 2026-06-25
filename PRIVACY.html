@@ -41,10 +41,10 @@
       are no analytics, no tracking, and nothing is ever sold.
     </p>
 
-    <p>Inbox Genie ("the extension") is a browser extension that adds a label
-      tab bar and a "Hold" (snooze) feature inside Gmail. This policy explains
-      exactly what data the extension accesses, how it is used, and where it is
-      stored.</p>
+    <p>Inbox Genie ("the extension") is a browser extension for Gmail that adds a
+      customizable tab bar (for Gmail labels and saved searches), private notes on
+      emails, and a "Hold" (snooze) feature. This policy explains exactly what data
+      the extension accesses, how it is used, and where it is stored.</p>
 
     <h2>Who operates this extension</h2>
     <p>This extension is published by <strong>Lazo Labs</strong>. For privacy
@@ -67,6 +67,10 @@
     <p>The extension does <strong>not</strong> read the full content of your
       emails, does <strong>not</strong> send email, and does <strong>not</strong>
       access threads other than the ones you choose to hold.</p>
+    <p><strong>Email notes</strong> do not use the Gmail API at all. A note is text
+      <em>you</em> type; it is stored in your own browser/Google account storage
+      (see below) and is never written into the email, sent to Lazo Labs, or shared
+      with anyone.</p>
 
     <h2>What the extension stores, and where</h2>
     <p>All data is stored using Chrome's built-in <code>chrome.storage</code>,
@@ -74,7 +78,8 @@
       controlled by Lazo Labs:</p>
     <table>
       <tr><th>Data</th><th>Where</th><th>Purpose</th></tr>
-      <tr><td>Pinned label list (id + name)</td><td><code>storage.sync</code></td><td>Which labels appear as tabs</td></tr>
+      <tr><td>Tabs configuration (label names/ids, search queries, tab names, colors, descriptions)</td><td><code>storage.sync</code></td><td>Renders and syncs your tab bar</td></tr>
+      <tr><td>Email notes (the note text you type, one entry per email thread)</td><td><code>storage.sync</code></td><td>Shows your private note on that email and syncs it across your devices</td></tr>
       <tr><td>Hold label name</td><td><code>storage.sync</code></td><td>Your custom name for the Hold tab/label</td></tr>
       <tr><td>Held threads (thread ID, subject, snippet, return time, baseline message count)</td><td><code>storage.local</code></td><td>To return held emails on time and detect replies</td></tr>
       <tr><td>Saved custom durations</td><td><code>storage.local</code></td><td>Your reusable "Hold for…" presets</td></tr>
@@ -84,7 +89,7 @@
 
     <h2>How the data is used</h2>
     <p>Data is used <strong>only</strong> to provide the extension's features
-      (label tabs and Hold) on your own device. The extension's use of information
+      (tabs, notes, and Hold) on your own device. The extension's use of information
       received from Google APIs adheres to the
       <a href="https://developers.google.com/terms/api-services-user-data-policy">Google
       API Services User Data Policy</a>, including the <strong>Limited Use</strong>
@@ -104,10 +109,10 @@
 
     <h2>Data retention and deletion</h2>
     <ul>
-      <li>Extension settings and hold records live in <code>chrome.storage</code>.
+      <li>Extension settings, notes, and hold records live in <code>chrome.storage</code>.
         Uninstalling the extension removes its local data.</li>
-      <li>You can clear pending holds at any time using the extension's "Return
-        now" / cancel controls.</li>
+      <li>You can delete a note at any time by clearing its text, and clear pending
+        holds at any time using the extension's "Return now" / cancel controls.</li>
       <li>Any labels created in Gmail (e.g. the <code>Hold</code> label) remain in
         your Gmail account until you delete them in Gmail, and are under your
         control.</li>
