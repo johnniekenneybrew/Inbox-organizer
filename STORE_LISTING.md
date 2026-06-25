@@ -18,40 +18,40 @@ Turn Gmail labels & searches into tabs, add private notes to emails, and snooze 
 Productivity / Workflow & Planning
 
 ## Detailed description
-Inbox Genie makes Gmail faster in two ways: it turns your labels into one‑click
-tabs, and it lets you put emails on hold so they leave your inbox now and come back
-exactly when you can deal with them.
+Whether you strive for inbox zero or just want to organize your inbox to make your day-to-day run smoother, Inbox Genie makes staying on top of your inbox a breeze.
 
-If you live in Gmail, two things slow you down every day — hunting through the
-label sidebar, and emails you can't act on yet sitting in your inbox nagging you.
-Inbox Genie fixes both.
+Inbox Genie adds the three things Gmail is missing: one-click tabs for your labels and searches, private notes on any email, and a Hold button that clears emails out of your inbox and brings them back exactly when you need them — all without ever leaving Gmail.
 
-GET TO ANY LABEL IN ONE CLICK
-Pin your most‑used labels as tabs across the top of Gmail (Inbox is always first),
-so you stop digging through the sidebar. Choose which labels appear and drag them
-into the order you want — and your setup follows you to every device you use Gmail
-on.
+CUSTOM TABS — get anywhere in one click
+✅ Turn any Gmail label into a tab
+✅ Add a tab for a label and all of its sublabels
+✅ Turn any search into a tab — like receipts with attachments, or emails from your boss or customers
+✅ Color-code tabs with your own font and background colors
+✅ Rename tabs, edit their query, and add descriptions
+✅ Drag to reorder — and your tabs sync across all your devices
 
-CLEAR YOUR INBOX WITHOUT LOSING TRACK ("Hold")
-Not ready to deal with an email? Hold it. It leaves your inbox immediately and
-returns — marked unread — exactly when you choose: in 3 days, a week, a custom
-amount of time, or on a specific date.
-• Hold an open email, a single message on hover, or a whole batch at once.
-• Everything you've held lives under a "Hold" tab, so nothing slips through the
-  cracks — bring any of it back early with a single click.
-• If someone replies before your timer is up, the hold clears automatically, so a
-  live conversation never gets stuck in limbo.
+PRIVATE NOTES — remember what matters
+✅ Add a private note to any email, right at the top of the conversation
+✅ Notes auto-save and sync across your devices
+✅ Only you can see them — notes are never added to the email or shared with anyone
+✅ A marker shows you at a glance which emails have notes
 
-WHY YOU'LL WANT IT
-• A calmer inbox that shows only what needs you right now.
-• Your labels, always one click away.
-• Peace of mind that held email always comes back on schedule.
+HOLD (SNOOZE) — a clear inbox, nothing forgotten
+✅ Hold an email to clear it from your inbox now and have it come back later
+✅ Choose 3 days, 1 week, a custom duration, or a specific date & time
+✅ Hold one email, or a whole batch at once
+✅ See everything you've held under one tab and return any of it early with a click
+✅ Held emails return marked unread, so they never slip past you
+✅ If someone replies before the timer is up, the hold cancels automatically
+
+WHY YOU'LL LOVE IT
+• A calmer inbox that shows only what needs you right now
+• Your labels and searches, always one click away
+• Context where you need it, with private notes on any email
+• Peace of mind that held email always comes back on schedule
 
 PRIVATE BY DESIGN
-Inbox Genie runs entirely in your browser and your own Google account. No
-analytics, no tracking, nothing sent to us, nothing sold. It only reads your label
-list and the limited thread details needed to hold and return the emails you
-choose — it never reads your email content and never sends mail.
+Inbox Genie runs entirely in your browser and your own Google account. No analytics, no tracking, nothing sent to us, nothing sold. It only reads your label list and the limited thread details needed to power tabs, notes, and Hold — it never reads your email content and never sends mail.
 Full privacy policy: https://johnniekenneybrew.github.io/Inbox-organizer/PRIVACY.html
 
 ## Single purpose (required)
