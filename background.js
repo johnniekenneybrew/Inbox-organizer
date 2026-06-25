@@ -66,12 +66,31 @@ async function getHoldName() {
   return v || DEFAULT_HOLD_NAME;
 }
 
-// Find (or create) the Hold label and cache its id.
+// Resolve the Hold label id, self-healing along the way:
+//  • verify the cached id still exists; rename it if the label name drifted
+//  • otherwise find an existing label by name, or create one
+// Always returns a valid id so a hold can never archive an email unlabeled.
 async function ensureHeldLabel(token) {
-  const cached = (await chrome.storage.local.get(HELD_LABEL_KEY))[HELD_LABEL_KEY];
-  if (cached) return cached;
-
   const name = await getHoldName();
+  const cached = (await chrome.storage.local.get(HELD_LABEL_KEY))[HELD_LABEL_KEY];
+
+  if (cached) {
+    try {
+      const lbl = await api(token, `/labels/${cached}`);
+      if (lbl && lbl.id) {
+        if (lbl.name !== name) {
+          await api(token, `/labels/${cached}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ name }),
+          });
+        }
+        return cached;
+      }
+    } catch {
+      // Cached id is stale (label deleted/recreated) — fall through to re-resolve.
+    }
+  }
+
   const { labels = [] } = await api(token, '/labels');
   let label = labels.find((l) => l.name === name);
   if (!label) {
@@ -88,16 +107,26 @@ async function ensureHeldLabel(token) {
   return label.id;
 }
 
-// Persist a new Hold label name and rename the Gmail label to match.
+// Re-apply the Hold label to every currently-held thread (recovers any thread
+// that was archived without the label, or whose label drifted).
+async function reapplyHoldLabel(token, labelId) {
+  const holds = await loadHolds();
+  for (const h of holds) {
+    try {
+      await modifyThread(token, h.threadId, [labelId], []);
+    } catch {
+      // Best-effort; a single failure shouldn't block the rest.
+    }
+  }
+}
+
+// Persist a new Hold label name; ensureHeldLabel renames/creates the Gmail label
+// to match, then re-label existing holds so none are left orphaned.
 async function setHoldLabelName(name) {
   await chrome.storage.sync.set({ [HOLD_NAME_KEY]: name });
   const token = await getToken(true);
-  const id = (await chrome.storage.local.get(HELD_LABEL_KEY))[HELD_LABEL_KEY];
-  if (id) {
-    await api(token, `/labels/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) });
-  } else {
-    await ensureHeldLabel(token); // not created yet — create with the new name
-  }
+  const labelId = await ensureHeldLabel(token);
+  await reapplyHoldLabel(token, labelId);
   return { ok: true };
 }
 
@@ -153,10 +182,11 @@ async function ensureAlarm() {
 async function holdThread({ threadId, messageId, returnAt }) {
   const token = await getToken(true);
   const meta = await resolveThreadMeta(token, { threadId, messageId });
-  const heldLabelId = await ensureHeldLabel(token).catch(() => null);
+  // Resolve the label first; if this throws, the hold fails and is surfaced to the
+  // user instead of silently archiving the email with no Hold label applied.
+  const heldLabelId = await ensureHeldLabel(token);
 
-  const add = heldLabelId ? [heldLabelId] : [];
-  await modifyThread(token, meta.threadId, add, ['INBOX']);
+  await modifyThread(token, meta.threadId, [heldLabelId], ['INBOX']);
 
   const holds = await loadHolds();
   // Replace any existing hold for the same thread.
