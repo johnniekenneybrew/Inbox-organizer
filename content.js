@@ -29,6 +29,14 @@ let pickerOpen       = false;
 
 function genId() { return 't' + Math.random().toString(36).slice(2, 9); }
 
+// Reject after `ms` so a stuck network/auth call can't hang the UI forever.
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Timed out')), ms)),
+  ]);
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 function getToken() {
@@ -846,8 +854,14 @@ async function openSettings() {
   const listEl = panel.querySelector('#glt-tabs-list');
   const formEl = panel.querySelector('#glt-tab-form');
 
-  try { allLabels = await fetchUserLabels(); } catch { /* labels optional for query tabs */ }
+  // The tab list comes from saved config (local) — render it immediately so the
+  // panel never waits on the network. Gmail labels (needed only for the add/edit
+  // form's dropdown) load in the background with a timeout, so a stuck auth prompt
+  // can't freeze the panel.
   renderTabsList();
+  withTimeout(fetchUserLabels(), 8000)
+    .then((labels) => { allLabels = labels; })
+    .catch(() => { /* query tabs don't need labels; the form falls back gracefully */ });
 
   panel.querySelector('#glt-add-tab').addEventListener('click', () => openForm(null));
   panel.querySelector('#glt-sp-save').addEventListener('click', onSaveAll);
