@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Inbox Genie - Tabs & Notes for Gmail",
   "version": "1.3",
-  "description": "Turn Gmail labels and saved searches into tabs, add private notes to emails, and Hold (snooze) emails back to your inbox on a timer.",
+  "description": "Turn Gmail labels and saved searches into tabs, add private notes to emails, and Snooze emails back to your inbox on a timer.",
 
   "icons": {
     "16": "icons/icon16.png",

@@ -1,6 +1,8 @@
 # Inbox Genie
 
-A Chrome extension (Manifest V3) that turns Gmail labels and saved searches into a sticky tab bar, lets you add private notes to emails, and includes a **Hold** feature that snoozes emails out of the inbox and brings them back on a timer.
+A Chrome extension (Manifest V3) that turns Gmail labels and saved searches into a sticky tab bar, lets you add private notes to emails, and includes a **Snooze** feature that clears emails out of the inbox and brings them back on a timer.
+
+> **Note on Snooze vs. Gmail's native Snooze:** Gmail's built-in Snooze cannot be controlled by any extension — the Gmail API does not expose snooze (you can't read or write the `SNOOZED` system label or its return time). This extension implements its own snooze independently, using a custom label + archive + a `chrome.alarms` timer. The two are separate systems.
 
 ## What it does
 
@@ -15,20 +17,20 @@ A Chrome extension (Manifest V3) that turns Gmail labels and saved searches into
 - Open any email to get a private **Note** panel at the top of the conversation
 - Notes auto-save and sync across your devices via `chrome.storage.sync` (one key per thread)
 - Notes are **private to you** — never written into the email, never sent anywhere but your own Google account storage
-- Emails that have a note show a small 📝 marker in the list
+- Emails that have a note show a yellow **sticky-note** marker in the list; click it to view and edit the note inline, without opening the email
 
-### Hold (boomerang)
-- **From the inbox list:** hover any row and click the inline **Hold** button — no need to open the email
-- **From an open conversation:** click **Hold** in the tab bar
+### Snooze (boomerang)
+- **From the inbox list:** hover any row and click the inline **Snooze** button — no need to open the email
+- **From an open conversation:** click **Snooze** in the tab bar
 - Pick when it should come back: **3 days**, **1 week**, a **Custom** duration (a number of hours/days/weeks), or a **specific date & time**
 - Custom durations are remembered — each one you enter is cached locally (`chrome.storage.local`) and appears as its own quick-pick button next time (removable with the ✕)
-- The email is archived out of the inbox and tagged with the **Hold** label
-- The **Hold** tab on the right of the bar opens the Hold label so you can see and open the held emails in Gmail; it shows a count badge. Hovering a held row shows **when it will return** plus a **Return now** button
-- **Return now** is available both on a held email's row (hover) and inside the opened email; the automatic timer return and Return now both bring the email back **unread**
-- **Bulk hold / return:** select multiple rows with Gmail's checkboxes, then use the bar's **Hold (n)** button to hold them all (or **Return now (n)** while in the Hold view to return them all). Held threads leave the inbox immediately
-- **A reply ends the hold early:** if a new message arrives in a held thread before the timer, the background check removes the **Hold** label automatically (the reply has already pulled the thread back into your inbox)
-- The Hold tab/label name is **customizable** in the settings (gear) panel — defaults to "Hold"
-- Holds are tracked in `chrome.storage.local`; the return + reply-check job runs in the service worker via `chrome.alarms` (once a minute)
+- The email is archived out of the inbox and tagged with the **Snooze** label
+- The **Snooze** tab on the right of the bar opens the Snooze label so you can see and open the snoozed emails in Gmail; it shows a count badge. Hovering a snoozed row shows **when it will return** plus a **Return now** button
+- **Return now** is available both on a snoozed email's row (hover) and inside the opened email; the automatic timer return and Return now both bring the email back **unread**
+- **Bulk snooze / return:** select multiple rows with Gmail's checkboxes, then use the bar's **Snooze (n)** button to snooze them all (or **Return now (n)** while in the Snooze view to return them all). Snoozed threads leave the inbox immediately
+- **A reply ends the snooze early:** if a new message arrives in a snoozed thread before the timer, the background check removes the **Snooze** label automatically (the reply has already pulled the thread back into your inbox)
+- The Snooze tab/label name is **customizable** in the settings (gear) panel — defaults to "Snooze"
+- Snoozes are tracked in `chrome.storage.local`; the return + reply-check job runs in the service worker via `chrome.alarms` (once a minute)
 
 ---
 
@@ -95,9 +97,9 @@ Because the app stays in **Testing** mode you must explicitly allow each Gmail a
 | File | Purpose |
 |---|---|
 | `manifest.json` | Extension manifest — permissions, OAuth scopes, content script declaration |
-| `background.js` | Service worker — brokers `chrome.identity.getAuthToken()` calls, runs the Hold/return engine via `chrome.alarms` |
-| `content.js` | Injected into Gmail — renders tab bar, Hold button + manager, settings panel, MutationObserver, hash-change handler |
-| `styles.css` | Injected CSS — tab bar, Hold UI, and settings panel styles, all prefixed `glt-` |
+| `background.js` | Service worker — brokers `chrome.identity.getAuthToken()` calls, runs the Snooze/return engine via `chrome.alarms` |
+| `content.js` | Injected into Gmail — renders tab bar, Snooze button + manager, settings panel, MutationObserver, hash-change handler |
+| `styles.css` | Injected CSS — tab bar, Snooze UI, and settings panel styles, all prefixed `glt-` |
 | `popup.html` | Extension toolbar popup — quick link to open Gmail |
 
 ---
@@ -106,7 +108,7 @@ Because the app stays in **Testing** mode you must explicitly allow each Gmail a
 
 | Scope | Why |
 |---|---|
-| `https://www.googleapis.com/auth/gmail.labels` | Read your label list for the tab bar; create the **⏳ Held** label |
-| `https://www.googleapis.com/auth/gmail.modify` | Archive a held thread out of the inbox and add it back when its timer fires |
+| `https://www.googleapis.com/auth/gmail.labels` | Read your label list for the tab bar; create the **Snooze** label |
+| `https://www.googleapis.com/auth/gmail.modify` | Archive a snoozed thread out of the inbox and add it back when its timer fires |
 
-`gmail.modify` does **not** grant permanent deletion or send access. The extension only changes which labels (including `INBOX`/`UNREAD`) are applied to threads you explicitly hold.
+`gmail.modify` does **not** grant permanent deletion or send access. The extension only changes which labels (including `INBOX`/`UNREAD`) are applied to threads you explicitly snooze.

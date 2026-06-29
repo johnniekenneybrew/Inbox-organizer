@@ -7,7 +7,7 @@ const PANEL_ID   = 'glt-panel';
 const OVERLAY_ID = 'glt-overlay';
 const POPOVER_ID = 'glt-hold-pop';
 
-const DEFAULT_HOLD_NAME = 'Hold';
+const DEFAULT_HOLD_NAME = 'Snooze';
 const UNIT_MS = { hours: 3600e3, days: 864e5, weeks: 6048e5 };
 
 // Fixed quick-pick durations. Custom durations the user adds are cached and
@@ -259,7 +259,7 @@ function buildBar(tabs) {
   // Contextual action for an open conversation: "Hold" or "Return now".
   const action = document.createElement('button');
   action.className = 'glt-hold';
-  action.innerHTML = `${clockIcon()}<span class="glt-hold-label">Hold</span>`;
+  action.innerHTML = `${clockIcon()}<span class="glt-hold-label">Snooze</span>`;
   action.addEventListener('click', onBarActionClick);
   right.appendChild(action);
 
@@ -450,7 +450,7 @@ function updateHoldTab() {
   countEl.textContent = n ? String(n) : '';
   countEl.style.display = n ? '' : 'none';
   tab.classList.toggle('glt-hold-tab--active', isCurrentViewHold());
-  tab.title = `Held emails${n ? ` (${n})` : ''} — open the “${holdLabelName}” view`;
+  tab.title = `Snoozed emails${n ? ` (${n})` : ''} — open the “${holdLabelName}” view`;
 }
 
 // Bar action button: hold / return the open email, or all selected rows.
@@ -548,7 +548,7 @@ function openHoldPicker(anchorEl, target, onAfter) {
         <option value="days" selected>days</option>
         <option value="weeks">weeks</option>
       </select>
-      <button class="glt-pop-cgo">Hold</button>
+      <button class="glt-pop-cgo">Snooze</button>
     </div>
     <p class="glt-pop-sub">Or on a specific date</p>
     <div class="glt-pop-date">
@@ -660,11 +660,11 @@ async function commitHold(target, returnAt, onAfter) {
   await refreshHolds();
   const when = formatWhen(returnAt);
   if (ok && !fail) {
-    toast(targets.length > 1 ? `Held ${ok} emails — return ${when}` : `Held — returns ${when}`);
+    toast(targets.length > 1 ? `Snoozed ${ok} emails — return ${when}` : `Snoozed — returns ${when}`);
   } else if (ok) {
-    toast(`Held ${ok}; ${fail} failed`, true);
+    toast(`Snoozed ${ok}; ${fail} failed`, true);
   } else {
-    toast(`Couldn't hold ${fail === 1 ? 'this email' : `${fail} emails`}`, true);
+    toast(`Couldn't snooze ${fail === 1 ? 'this email' : `${fail} emails`}`, true);
   }
   onAfter?.(ok > 0);
 }
@@ -729,7 +729,7 @@ function setupRowHoldHover() {
   const btn = document.createElement('button');
   btn.id = 'glt-row-hold';
   btn.className = 'glt-row-hold';
-  btn.innerHTML = `${clockIcon()}<span class="glt-row-hold-label">Hold</span>`;
+  btn.innerHTML = `${clockIcon()}<span class="glt-row-hold-label">Snooze</span>`;
   btn.style.display = 'none';
   document.body.appendChild(btn);
 
@@ -833,7 +833,7 @@ async function openSettings() {
     </div>
     <div class="glt-sp-scroll">
       <div class="glt-sp-field">
-        <label class="glt-sp-flabel" for="glt-hold-name">Hold tab &amp; label name</label>
+        <label class="glt-sp-flabel" for="glt-hold-name">Snooze tab &amp; label name</label>
         <input id="glt-hold-name" class="glt-sp-input" type="text" maxlength="40" placeholder="${escHtml(DEFAULT_HOLD_NAME)}">
       </div>
       <div class="glt-sp-sechead"><span>Tabs</span>

@@ -4,7 +4,7 @@ _Last updated: 2026-06-24_
 
 Inbox Genie ("the extension"), published by **Lazo Labs**, is a browser
 extension for Gmail that adds: a customizable **tab bar** (for Gmail labels and
-saved searches), private **notes** on emails, and a **Hold** (snooze) feature.
+saved searches), private **notes** on emails, and a **Snooze** feature.
 This policy explains exactly what data the extension accesses, how it is used,
 and where it is stored.
 
@@ -23,17 +23,17 @@ The extension uses the Gmail API with the following OAuth scopes:
 
 - **`https://www.googleapis.com/auth/gmail.labels`** — to read the list of your
   Gmail labels (names and IDs) so it can show them as tabs, and to create/rename
-  the "Hold" label.
-- **`https://www.googleapis.com/auth/gmail.modify`** — to put an email on Hold
-  and bring it back. Specifically, it adds/removes labels on threads you
-  explicitly act on (removing `INBOX` to archive, adding the `Hold` label, and
-  later re‑adding `INBOX`/`UNREAD`). To support Hold it also reads limited thread
-  metadata for threads you hold — the subject line, a short snippet, and the
+  the "Snooze" label.
+- **`https://www.googleapis.com/auth/gmail.modify`** — to snooze an email and bring
+  it back. Specifically, it adds/removes labels on threads you
+  explicitly act on (removing `INBOX` to archive, adding the `Snooze` label, and
+  later re‑adding `INBOX`/`UNREAD`). To support Snooze it also reads limited thread
+  metadata for threads you snooze — the subject line, a short snippet, and the
   number of messages in the thread (used to detect whether a reply arrived).
 
 The extension does **not** read the full content of your emails, does **not**
 send email, and does **not** access threads other than the ones you choose to
-hold.
+snooze.
 
 **Email notes** do not use the Gmail API at all. A note is text *you* type; it is
 stored in your own browser/Google account storage (see below) and is never written
@@ -49,15 +49,15 @@ developer**:
 |---|---|---|
 | Tabs configuration (label names/ids, search queries, tab names, colors, descriptions) | `chrome.storage.sync` | Renders and syncs your tab bar |
 | Email notes (the note text you type, one entry per email thread) | `chrome.storage.sync` | Shows your private note on that email and syncs it across your devices |
-| Hold label name | `chrome.storage.sync` | Your custom name for the Hold tab/label |
-| Held threads (thread ID, subject, snippet, return time, baseline message count) | `chrome.storage.local` | To return held emails on time and detect replies |
-| Saved custom durations | `chrome.storage.local` | Your reusable "Hold for…" presets |
-| Cached Hold label ID | `chrome.storage.local` | Performance |
+| Snooze label name | `chrome.storage.sync` | Your custom name for the Snooze tab/label |
+| Snoozed threads (thread ID, subject, snippet, return time, baseline message count) | `chrome.storage.local` | To return snoozed emails on time and detect replies |
+| Saved custom durations | `chrome.storage.local` | Your reusable "Snooze for…" presets |
+| Cached Snooze label ID | `chrome.storage.local` | Performance |
 | OAuth token | Managed by Chrome (`chrome.identity`) | Authenticating Gmail API calls |
 
 ## How the data is used
 
-Data is used **only** to provide the extension's features (tabs, notes, and Hold)
+Data is used **only** to provide the extension's features (tabs, notes, and Snooze)
 on your own device. The extension's use of information received from Google APIs
 adheres to the
 [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
@@ -77,11 +77,11 @@ your browser makes to Google's Gmail API on your behalf.
 
 ## Data retention and deletion
 
-- Extension settings, notes, and hold records live in `chrome.storage`.
+- Extension settings, notes, and snooze records live in `chrome.storage`.
   **Uninstalling the extension removes its local data.**
 - You can delete a note at any time by clearing its text; you can clear pending
-  holds at any time using the extension's "Return now" / cancel controls.
-- Any labels created in Gmail (e.g. the `Hold` label) remain in your Gmail
+  snoozes at any time using the extension's "Return now" / cancel controls.
+- Any labels created in Gmail (e.g. the `Snooze` label) remain in your Gmail
   account until you delete them in Gmail, and are under your control.
 - You can revoke the extension's access at any time at
   [Google Account → Security → Third‑party access](https://myaccount.google.com/connections).
