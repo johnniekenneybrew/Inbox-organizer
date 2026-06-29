@@ -8,7 +8,7 @@
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const API            = 'https://www.googleapis.com/gmail/v1/users/me';
-const DEFAULT_HOLD_NAME = 'Hold';               // user-customizable via storage.sync
+const DEFAULT_HOLD_NAME = 'Snooze';             // user-customizable via storage.sync
 const HOLDS_KEY      = 'heldThreads';           // chrome.storage.local
 const HELD_LABEL_KEY = 'heldLabelId';           // cached label id
 const HOLD_NAME_KEY  = 'holdLabelName';         // chrome.storage.sync
@@ -60,7 +60,7 @@ function modifyThread(token, threadId, addLabelIds, removeLabelIds) {
   });
 }
 
-// The user-customizable Hold label name (defaults to "Hold").
+// The user-customizable Snooze label name (defaults to "Snooze").
 async function getHoldName() {
   const v = (await chrome.storage.sync.get(HOLD_NAME_KEY))[HOLD_NAME_KEY];
   return v || DEFAULT_HOLD_NAME;
