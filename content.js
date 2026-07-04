@@ -89,7 +89,14 @@ function loadTabs() {
 }
 
 function saveTabs(tabs) {
-  return new Promise((resolve) => chrome.storage.sync.set({ tabs }, resolve));
+  return new Promise((resolve, reject) => {
+    chrome.storage.sync.set({ tabs }, () => {
+      // Silently ignoring lastError here made an over-quota tabs config "save"
+      // in the UI and then revert on next load.
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else resolve();
+    });
+  });
 }
 
 // ── Email notes (synced, one sync key per thread) ──
@@ -161,14 +168,26 @@ function removeCustomDuration(index) {
  * Returns the name of the currently-active label (or 'INBOX' for the inbox).
  * Reads from the URL hash because Gmail is a hash-router SPA.
  */
+// decodeURIComponent throws URIError on malformed percent-sequences, and the
+// hash is attacker-influenced (any link in an email can carry one). Treat a
+// hash we can't decode as "unknown view" instead of blowing up the handlers.
+function safeDecode(s) {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return null;
+  }
+}
+
 function activeTabName() {
   const hash = location.hash;
   if (!hash || hash === '#' || hash.startsWith('#inbox')) return 'INBOX';
 
   const native = hash.match(/^#label\/(.+?)(?:[/?].*)?$/);
-  if (native) return decodeURIComponent(native[1].replace(/\+/g, '%20'));
+  if (native) return safeDecode(native[1].replace(/\+/g, '%20'));
 
-  const decoded = decodeURIComponent(hash);
+  const decoded = safeDecode(hash);
+  if (decoded == null) return null;
   const quoted = decoded.match(/label:["']([^"']+)["']/i);
   if (quoted) return quoted[1];
   const plain = decoded.match(/label:([^"'\s&/]+)/i);
@@ -197,7 +216,7 @@ function goToTab(tab) {
 function currentSearchQuery() {
   const m = location.hash.match(/^#search\/(.+)$/);
   if (!m) return null;
-  return decodeURIComponent(m[1].replace(/\+/g, ' '));
+  return safeDecode(m[1].replace(/\+/g, ' '));
 }
 
 function normQuery(q) {
@@ -525,7 +544,7 @@ async function refreshHolds() {
  * (a { threadId | messageId } descriptor) for the chosen time.
  */
 function openHoldPicker(anchorEl, target, onAfter) {
-  document.getElementById(POPOVER_ID)?.remove();
+  closePopover(); // full close — a bare .remove() would leak the old document listeners
 
   const pop = document.createElement('div');
   pop.id = POPOVER_ID;
@@ -993,7 +1012,17 @@ async function openSettings() {
     saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
     const newName = (panel.querySelector('#glt-hold-name')?.value || '').trim() || DEFAULT_HOLD_NAME;
     workingTabs.forEach((t) => { if (!t.id) t.id = genId(); });
-    await saveTabs(workingTabs);
+    try {
+      await saveTabs(workingTabs);
+    } catch (err) {
+      // Keep the panel open so nothing the user configured is lost.
+      const tooBig = /QUOTA_BYTES/.test(err.message);
+      toast(tooBig
+        ? 'Couldn’t save: tabs config is too large to sync. Remove a tab or shorten names/queries.'
+        : `Couldn’t save tabs: ${err.message}`, true);
+      saveBtn.disabled = false; saveBtn.textContent = 'Save';
+      return;
+    }
     cachedPinned = workingTabs;
     if (newName !== holdLabelName) {
       holdLabelName = newName;
@@ -1024,10 +1053,12 @@ function escHtml(str) {
 
 function debounce(fn, ms) {
   let t;
-  return (...args) => {
+  const wrapped = (...args) => {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), ms);
   };
+  wrapped.cancel = () => clearTimeout(t);
+  return wrapped;
 }
 
 function formatWhen(ts) {
@@ -1079,6 +1110,10 @@ const debouncedEnsure = debounce(() => {
 const domObserver = new MutationObserver(debouncedEnsure);
 
 window.addEventListener('hashchange', () => {
+  // Kill any open pickers: their closures capture the previous view's thread,
+  // so a click after navigating would snooze the wrong email.
+  closePopover();
+  closeRowNotePop();
   updateActiveTab();
   updateHoldUI();
   tryInjectWithRetry();
@@ -1139,18 +1174,53 @@ function ensureNotePanel() {
   const status = panel.querySelector('#glt-note-status');
   getNote(convo.threadId).then((text) => { ta.value = text; autoGrow(ta); });
 
-  const save = debounce(async () => {
-    try {
-      await saveNote(convo.threadId, ta.value);
-      status.textContent = ta.value.trim() ? 'Saved' : '';
+  const save = debounce(async (id, text) => {
+    // id/text captured at keystroke time — a late fire after navigation still
+    // saves the right note.
+    if (await commitNote(id, text, status)) {
+      status.textContent = text.trim() ? 'Saved' : '';
       safeDecorateNoteRows();
       setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 1500);
-    } catch {
-      status.textContent = 'Too long to sync';
     }
   }, 600);
 
-  ta.addEventListener('input', () => { autoGrow(ta); status.textContent = 'Saving…'; save(); });
+  ta.addEventListener('input', () => {
+    autoGrow(ta);
+    status.textContent = 'Saving…';
+    save(convo.threadId, ta.value);
+  });
+}
+
+// Commit a note write, reporting failures honestly. Oversized notes can never
+// sync (per-item quota) — say so. Anything else (write-rate limit, transient
+// sync error) usually succeeds moments later, so retry once before giving up
+// instead of dropping the user's text with a misleading message.
+//
+// Writes are sequenced per note: a delayed retry must never land after a newer
+// commit for the same note and silently revert it to older text.
+const noteWriteSeq = new Map(); // note id -> latest commit sequence number
+async function commitNote(id, text, status) {
+  const seq = (noteWriteSeq.get(id) || 0) + 1;
+  noteWriteSeq.set(id, seq);
+  const superseded = () => noteWriteSeq.get(id) !== seq;
+  try {
+    await saveNote(id, text);
+    return true;
+  } catch (err) {
+    if (/QUOTA_BYTES/.test(err?.message || '')) {
+      if (status) status.textContent = 'Too long to sync';
+      return false;
+    }
+    await new Promise((r) => setTimeout(r, 2500));
+    if (superseded()) return false; // a newer write owns this note now
+    try {
+      await saveNote(id, text);
+      return true;
+    } catch {
+      if (status && !superseded()) status.textContent = 'Not saved — sync busy, keep the note open';
+      return false;
+    }
+  }
 }
 
 // Refresh the open panel if its note changed elsewhere (and it isn't being typed in).
@@ -1205,6 +1275,7 @@ function safeDecorateNoteRows() {
 // ─── Inline note quick-editor (from list rows) ────────────────────────────────
 
 let rowNoteThreadId = null;
+let rowNotePending = null; // { id, text } typed but not yet committed to storage
 
 function ensureRowNotePop() {
   let pop = document.getElementById(ROW_NOTE_ID);
@@ -1222,20 +1293,30 @@ function ensureRowNotePop() {
 
   const ta = pop.querySelector('.glt-rnote-ta');
   const status = pop.querySelector('.glt-rnote-status');
-  const save = debounce(async () => {
-    if (!rowNoteThreadId) return;
-    try {
-      await saveNote(rowNoteThreadId, ta.value);
-      status.textContent = ta.value.trim() ? 'Saved' : '';
+  const save = debounce(async (id, text) => {
+    // id/text are captured at keystroke time: if the user switched the popover
+    // to another row before this fired, the save still targets the note that
+    // was being edited — not whichever thread the popover shows now.
+    if (rowNotePending && rowNotePending.id === id) rowNotePending = null;
+    const stillHere = () => rowNoteThreadId === id;
+    if (await commitNote(id, text, stillHere() ? status : null)) {
+      if (stillHere()) {
+        status.textContent = text.trim() ? 'Saved' : '';
+        setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 1500);
+      }
       safeDecorateNoteRows();
       refreshOpenNote();
-      setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 1500);
-    } catch {
-      status.textContent = 'Too long to sync';
     }
   }, 600);
 
-  ta.addEventListener('input', () => { status.textContent = 'Saving…'; save(); });
+  pop._cancelPendingSave = () => save.cancel();
+
+  ta.addEventListener('input', () => {
+    if (!rowNoteThreadId) return;
+    status.textContent = 'Saving…';
+    rowNotePending = { id: rowNoteThreadId, text: ta.value };
+    save(rowNoteThreadId, ta.value);
+  });
   ta.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeRowNotePop(); });
   pop.querySelector('.glt-rnote-x').addEventListener('click', closeRowNotePop);
   pop.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -1249,14 +1330,32 @@ function ensureRowNotePop() {
   return pop;
 }
 
+// Commit any typed-but-not-yet-saved edit immediately (switching rows or
+// closing must never discard text that showed "Saving…").
+function flushRowNote() {
+  if (!rowNotePending) return;
+  const { id, text } = rowNotePending;
+  rowNotePending = null;
+  // The debounced save for this edit is now redundant — cancel it so the same
+  // content isn't written twice (sync write ops are rate-limited).
+  document.getElementById(ROW_NOTE_ID)?._cancelPendingSave?.();
+  commitNote(id, text, null).then((ok) => {
+    if (ok) { safeDecorateNoteRows(); refreshOpenNote(); }
+  });
+}
+
 function openRowNotePopover(anchorEl, threadId) {
   if (!threadId) return;
+  flushRowNote(); // commit the previous row's edit before retargeting
   const pop = ensureRowNotePop();
   rowNoteThreadId = threadId;
   const ta = pop.querySelector('.glt-rnote-ta');
   pop.querySelector('.glt-rnote-status').textContent = '';
   ta.value = '';
-  getNote(threadId).then((text) => { ta.value = text; });
+  getNote(threadId).then((text) => {
+    // Ignore a slow fill for a thread the popover is no longer showing.
+    if (rowNoteThreadId === threadId && !ta.value) ta.value = text;
+  });
 
   pop.classList.add('show');
   const r = anchorEl.getBoundingClientRect();
@@ -1272,6 +1371,7 @@ function openRowNotePopover(anchorEl, threadId) {
 }
 
 function closeRowNotePop() {
+  flushRowNote(); // never drop an edit that was mid-debounce
   const pop = document.getElementById(ROW_NOTE_ID);
   if (pop) pop.classList.remove('show');
   rowNoteThreadId = null;
