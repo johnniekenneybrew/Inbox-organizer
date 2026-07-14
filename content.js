@@ -875,12 +875,41 @@ async function openSettings() {
 
   // The tab list comes from saved config (local) — render it immediately so the
   // panel never waits on the network. Gmail labels (needed only for the add/edit
-  // form's dropdown) load in the background with a timeout, so a stuck auth prompt
-  // can't freeze the panel.
+  // form's dropdown) load in the background with a generous timeout: on a first
+  // run the fetch sits behind the OAuth consent screen, which the user can take
+  // well over a minute to read and accept. If it still fails, the form shows the
+  // failure honestly and retries on open, instead of claiming "(no labels found)".
+  let labelsState = 'loading'; // 'loading' | 'ready' | 'failed'
+  function loadLabels() {
+    labelsState = 'loading';
+    refreshLabelSelect();
+    withTimeout(fetchUserLabels(), 90000)
+      .then((labels) => { allLabels = labels; labelsState = 'ready'; refreshLabelSelect(); })
+      .catch(() => { labelsState = 'failed'; refreshLabelSelect(); });
+  }
+
+  function labelSelectOptions(selectedName) {
+    if (allLabels.length) {
+      return allLabels
+        .map((l) => `<option value="${escHtml(l.name)}"${selectedName === l.name ? ' selected' : ''}>${escHtml(l.name)}</option>`)
+        .join('');
+    }
+    if (labelsState === 'loading') return '<option value="">(loading your labels…)</option>';
+    if (labelsState === 'failed') return '<option value="">(couldn’t load labels — close &amp; reopen settings)</option>';
+    return '<option value="">(no labels in this account)</option>';
+  }
+
+  // If the add/edit form is open when the labels arrive (or fail), swap the
+  // dropdown's contents in place.
+  function refreshLabelSelect() {
+    const sel = formEl.querySelector('#glt-tf-labelsel');
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = labelSelectOptions(current);
+  }
+
   renderTabsList();
-  withTimeout(fetchUserLabels(), 8000)
-    .then((labels) => { allLabels = labels; })
-    .catch(() => { /* query tabs don't need labels; the form falls back gracefully */ });
+  loadLabels();
 
   panel.querySelector('#glt-add-tab').addEventListener('click', () => openForm(null));
   panel.querySelector('#glt-sp-save').addEventListener('click', onSaveAll);
@@ -933,9 +962,10 @@ async function openSettings() {
   function openForm(index) {
     const editing = index != null;
     const t = editing ? workingTabs[index] : { type: 'label', name: '', query: '', description: '', fg: '', bg: '', sublabels: false };
-    const labelOpts = allLabels
-      .map((l) => `<option value="${escHtml(l.name)}"${t.labelName === l.name ? ' selected' : ''}>${escHtml(l.name)}</option>`)
-      .join('');
+    // Opening the form with no labels cached kicks a fresh fetch (e.g. the
+    // first attempt died behind the consent screen or a flaky connection).
+    if (!allLabels.length && labelsState !== 'loading') loadLabels();
+    const labelOpts = labelSelectOptions(t.labelName);
     formEl.hidden = false;
     formEl.innerHTML = `
       <div class="glt-tf-row"><label class="glt-tf-label">Type</label>
@@ -944,7 +974,7 @@ async function openSettings() {
           <option value="query"${t.type === 'query' ? ' selected' : ''}>Search query</option>
         </select></div>
       <div class="glt-tf-row" id="glt-tf-labelrow"><label class="glt-tf-label">Label</label>
-        <select id="glt-tf-labelsel" class="glt-sp-input">${labelOpts || '<option value="">(no labels found)</option>'}</select></div>
+        <select id="glt-tf-labelsel" class="glt-sp-input">${labelOpts}</select></div>
       <label class="glt-tf-check" id="glt-tf-subrow"><input type="checkbox" id="glt-tf-sub"${t.sublabels ? ' checked' : ''}> Include sublabels</label>
       <div class="glt-tf-row" id="glt-tf-queryrow"><label class="glt-tf-label">Query</label>
         <input id="glt-tf-query" class="glt-sp-input" type="text" placeholder="e.g. has:attachment receipt" value="${escHtml(t.query || '')}"></div>

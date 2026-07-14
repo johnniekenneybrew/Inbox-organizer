@@ -2,6 +2,8 @@
 
 Dated major product/technical decisions, newest first. Reconstructed from git history and session records; commit hashes cite the evidence. Keep entries short and factual; append at the top.
 
+**2026-07-14 — First-run label loading fixed** (found via live smoke test). The settings panel's label fetch timed out at 8s while the user was still reading the OAuth consent screen, then silently reported "(no labels found)" — a guaranteed dead-end on every fresh install. Now: 90s timeout, three honest dropdown states (loading / failed / genuinely none), in-place refresh when labels arrive, and an automatic re-fetch when the form opens with nothing cached.
+
 **2026-07-11 — Adversarial bug-hunt hardening shipped** (`c6950d7`). A 6-lens parallel review + 3-skeptic verification found 20 confirmed bugs; the 15 pure-correctness fixes shipped: snooze engine made intent-first (record before archive; API before record-delete), per-hold commits, 404 pruning, label self-healing in the loop, 401 retry-once, single-queue serialization, drafts/sent excluded from reply detection (with legacy-baseline migration), note-save race fixes with per-note write sequencing, popover cleanup on navigation, safe hash decoding, honest quota errors. Five design-decision items deferred to the backlog.
 
 **2026-07-11 — "Hold" renamed to "Snooze"** (`4e5d207`). Decision: user-facing discoverability beats avoiding overlap with Gmail's native Snoozed view — "Snooze" is the word users already know. Internal code names (`holdThread`, `heldThreads`…) deliberately kept to avoid churn. Context: Gmail's API cannot read or write native snooze, so the extension's own label+timer implementation is the only option.
